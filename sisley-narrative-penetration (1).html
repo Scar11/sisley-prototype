@@ -409,6 +409,128 @@
     };
 
     // ============================================================
+    // CHATBOT PERCEPTION DATA
+    // ============================================================
+
+    const CHATBOTS = [
+      { id: "chatgpt", name: "ChatGPT", color: "#10a37f", model: "GPT-4o" },
+      { id: "claude", name: "Claude", color: "#d4a27f", model: "Claude 3.5 Sonnet" },
+      { id: "gemini", name: "Gemini", color: "#4285f4", model: "Gemini 1.5 Pro" },
+      { id: "grok", name: "Grok", color: "#a0a0a0", model: "Grok-2" }
+    ];
+
+    const CHATBOT_BRAND_PERCEPTION = {
+      chatgpt: {
+        overallScore: 74, mentionRate: 68, recommendationRank: 3, sentiment: "positive",
+        strengths: ["Heritage & luxury positioning", "Anti-aging efficacy claims", "Botanical expertise narrative"],
+        concerns: ["Price justification vs. competitors", "Sustainability rarely mentioned", "Limited Gen Z relevance"],
+        sampleQuery: "What are the best luxury anti-aging skincare brands?",
+        sampleSnippet: "Sisley Paris is a premium French skincare house renowned for its phyto-cosmetology approach — combining botanical extracts with advanced skincare science. Their flagship Sisleÿa L'Intégral Anti-Âge is widely considered a top-tier anti-aging treatment, though it comes at a significant price point compared to alternatives like Augustinus Bader or La Mer.",
+        pillarScores: { efficacy: 78, prestige: 82, ingredients: 68, sustainability: 42, value: 52 },
+        topRecommended: ["Sisleÿa L'Intégral", "Black Rose", "Hydra-Global"]
+      },
+      claude: {
+        overallScore: 71, mentionRate: 62, recommendationRank: 4, sentiment: "positive",
+        strengths: ["Scientific rigor of phyto-cosmetology", "Product heritage story", "Clinical validation evidence"],
+        concerns: ["Ingredient transparency gaps noted", "Positions as niche vs. mainstream luxury", "Value proposition underexplored"],
+        sampleQuery: "I want to invest in luxury skincare. How does Sisley compare to La Mer?",
+        sampleSnippet: "Sisley takes a distinctive approach rooted in phyto-cosmetology — the science of using plant-based active ingredients. While La Mer emphasizes its proprietary Miracle Broth, Sisley's formulations are often praised by dermatologists for their botanical complexity. The brand is family-owned by the d'Ornano family, giving it an artisanal quality that larger conglomerates can't replicate.",
+        pillarScores: { efficacy: 76, prestige: 78, ingredients: 72, sustainability: 48, value: 50 },
+        topRecommended: ["Black Rose", "Sisleÿa L'Intégral", "Phyto-Blanc Le Concentré"]
+      },
+      gemini: {
+        overallScore: 68, mentionRate: 58, recommendationRank: 5, sentiment: "mixed",
+        strengths: ["Recognized as established luxury brand", "Product range breadth", "French heritage"],
+        concerns: ["Often listed after more popular competitors", "Clean beauty positioning unclear", "Limited digital-native appeal"],
+        sampleQuery: "Best luxury skincare brands for anti-aging in 2026?",
+        sampleSnippet: "For luxury anti-aging, top recommendations include La Mer, Chanel, Augustinus Bader, La Prairie, and Sisley Paris. Sisley is particularly known for its plant-based approach and the Sisleÿa line. However, some consumers note the steep price point relative to newer science-backed brands.",
+        pillarScores: { efficacy: 72, prestige: 74, ingredients: 60, sustainability: 38, value: 48 },
+        topRecommended: ["Sisleÿa L'Intégral", "Black Rose"]
+      },
+      grok: {
+        overallScore: 66, mentionRate: 54, recommendationRank: 4, sentiment: "mixed",
+        strengths: ["Luxury credibility acknowledged", "Unique botanical positioning", "Loyal following noted"],
+        concerns: ["Perceived as 'old money' brand", "Weak sustainability narrative", "Less mention in trending beauty discourse"],
+        sampleQuery: "What's the most effective luxury skincare money can buy?",
+        sampleSnippet: "Sisley Paris flies under the radar compared to La Mer or Augustinus Bader, but it has a devoted following among skincare enthusiasts who swear by the phyto-cosmetology approach. The Black Rose line is genuinely impressive. That said, you're paying a serious premium — and the brand hasn't kept up with sustainability trends the way newer players have.",
+        pillarScores: { efficacy: 70, prestige: 76, ingredients: 62, sustainability: 34, value: 46 },
+        topRecommended: ["Black Rose", "Sisleÿa L'Intégral", "Eau du Soir"]
+      }
+    };
+
+    const CHATBOT_PILLAR_PERCEPTION = {
+      efficacy: {
+        chatgpt: { score: 78, alignment: "strong", phrases: ["clinically proven", "dermatologist-recommended", "visible results", "phyto-cosmetology"] },
+        claude: { score: 76, alignment: "strong", phrases: ["scientific approach", "botanical actives", "evidence-based", "clinical validation"] },
+        gemini: { score: 72, alignment: "moderate", phrases: ["anti-aging properties", "plant-based ingredients", "luxury skincare science"] },
+        grok: { score: 70, alignment: "moderate", phrases: ["actually works", "real results", "phyto approach", "devoted following"] }
+      },
+      prestige: {
+        chatgpt: { score: 82, alignment: "strong", phrases: ["French luxury house", "premium positioning", "d'Ornano family", "heritage brand"] },
+        claude: { score: 78, alignment: "strong", phrases: ["artisanal quality", "family-owned maison", "luxury heritage", "distinctive approach"] },
+        gemini: { score: 74, alignment: "moderate", phrases: ["established luxury", "premium French brand", "high-end skincare"] },
+        grok: { score: 76, alignment: "moderate", phrases: ["old money brand", "luxury credibility", "under the radar prestige"] }
+      },
+      ingredients: {
+        chatgpt: { score: 68, alignment: "moderate", phrases: ["botanical extracts", "plant-based", "phyto-cosmetology"] },
+        claude: { score: 72, alignment: "moderate", phrases: ["botanical complexity", "plant-based actives", "phyto-cosmetology science"] },
+        gemini: { score: 60, alignment: "weak", phrases: ["plant-based approach", "natural ingredients"] },
+        grok: { score: 62, alignment: "weak", phrases: ["botanical approach", "natural formulations"] }
+      },
+      sustainability: {
+        chatgpt: { score: 42, alignment: "weak", phrases: [] },
+        claude: { score: 48, alignment: "weak", phrases: ["family-owned sustainability", "evolving practices"] },
+        gemini: { score: 38, alignment: "absent", phrases: [] },
+        grok: { score: 34, alignment: "absent", phrases: ["hasn't kept up with sustainability trends"] }
+      },
+      value: {
+        chatgpt: { score: 52, alignment: "weak", phrases: ["significant price point", "premium pricing", "investment piece"] },
+        claude: { score: 50, alignment: "weak", phrases: ["premium investment", "higher price tier"] },
+        gemini: { score: 48, alignment: "weak", phrases: ["steep price point", "premium cost"] },
+        grok: { score: 46, alignment: "weak", phrases: ["serious premium", "you're paying a lot"] }
+      }
+    };
+
+    const CHATBOT_PRODUCT_PERCEPTION = {
+      "Black Rose": {
+        chatgpt: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Black Rose Precious Face Oil is one of Sisley's standout products — a luxurious facial oil that delivers visible radiance overnight.", competitors: ["La Mer Renewal Oil"] },
+        claude: { rank: 1, mentioned: true, sentiment: "positive", snippet: "The Black Rose line is arguably Sisley's crown jewel. The Cream Mask and Precious Face Oil have achieved cult status among skincare connoisseurs.", competitors: [] },
+        gemini: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Black Rose is frequently recommended for luxury facial oils, competing with offerings from La Mer and Chanel.", competitors: ["La Mer Renewal Oil", "Chanel Sublimage"] },
+        grok: { rank: 1, mentioned: true, sentiment: "positive", snippet: "The Black Rose line is genuinely impressive — it's the kind of product that converts skeptics into Sisley loyalists.", competitors: [] }
+      },
+      "Sisleÿa L'Intégral": {
+        chatgpt: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Sisleÿa L'Intégral Anti-Âge is widely considered a top-tier comprehensive anti-aging treatment with clinical backing.", competitors: ["La Mer Crème", "Augustinus Bader The Cream"] },
+        claude: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Sisleÿa represents Sisley's most advanced anti-aging technology, with published clinical data supporting its efficacy claims.", competitors: ["Augustinus Bader The Rich Cream"] },
+        gemini: { rank: 4, mentioned: true, sentiment: "mixed", snippet: "Sisleÿa is a well-regarded anti-aging line, though it faces stiff competition from trendier alternatives.", competitors: ["La Mer", "Augustinus Bader", "La Prairie"] },
+        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Sisleÿa is the serious anti-aging play. Clinical results back it up, but the price tag is eye-watering.", competitors: ["Augustinus Bader", "La Mer"] }
+      },
+      "Hydra-Global": {
+        chatgpt: { rank: 5, mentioned: false, sentiment: "neutral", snippet: "Sisley's hydration line offers botanical-based moisturizing but faces strong competition in this crowded category.", competitors: ["La Mer Moisturizing", "Tatcha", "Drunk Elephant"] },
+        claude: { rank: 4, mentioned: true, sentiment: "positive", snippet: "Hydra-Global has improved significantly after its reformulation, offering a sophisticated texture and 24-hour hydration.", competitors: ["La Mer", "Augustinus Bader"] },
+        gemini: { rank: 6, mentioned: false, sentiment: "neutral", snippet: "Less frequently mentioned in the luxury moisturizer category compared to flagship competitors.", competitors: ["La Mer", "Tatcha", "La Prairie", "SK-II", "Chanel"] },
+        grok: { rank: 5, mentioned: false, sentiment: "neutral", snippet: "Hydra-Global doesn't get the attention it deserves — the reformulation fixed its texture issues.", competitors: ["Augustinus Bader", "La Mer", "Drunk Elephant", "Tatcha"] }
+      },
+      "Sunleÿa G.E.": {
+        chatgpt: { rank: 4, mentioned: false, sentiment: "neutral", snippet: "Sisley's sun care is premium-positioned but rarely appears in top SPF recommendation lists.", competitors: ["La Roche-Posay", "Supergoop", "Dr. Dennis Gross"] },
+        claude: { rank: 5, mentioned: false, sentiment: "cautious", snippet: "Sunleÿa G.E. offers anti-aging sun protection, though the luxury sun care space has seen newer entrants gaining attention.", competitors: ["Supergoop", "Dr. Dennis Gross", "La Roche-Posay", "Chanel UV Essentiel"] },
+        gemini: { rank: 7, mentioned: false, sentiment: "neutral", snippet: "Not typically recommended in standard sun protection queries. The luxury SPF niche is limited.", competitors: ["Supergoop", "La Roche-Posay", "EltaMD", "Chanel"] },
+        grok: { rank: 6, mentioned: false, sentiment: "cautious", snippet: "In the SPF game, dermatologist brands dominate. Sisley's Sunleÿa is for the person who wants anti-aging with their sun protection.", competitors: ["Supergoop", "La Roche-Posay", "EltaMD"] }
+      },
+      "Phyto-Blanc Le Concentré": {
+        chatgpt: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc Le Concentré is recognized as a leading luxury brightening serum, especially popular in Asian markets.", competitors: ["SK-II GenOptics", "Clé de Peau Sérum Éclat"] },
+        claude: { rank: 2, mentioned: true, sentiment: "positive", snippet: "One of the most respected brightening serums in luxury skincare, with strong clinical evidence for visible tone evening.", competitors: ["SK-II GenOptics"] },
+        gemini: { rank: 4, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc is well-regarded in the brightening category, particularly recommended for Asian skin types.", competitors: ["SK-II", "Clé de Peau", "Shiseido White Lucent"] },
+        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc is Sisley's APAC powerhouse — #1 on Xiaohongshu for brightening and legitimately effective.", competitors: ["SK-II GenOptics", "Clé de Peau"] }
+      },
+      "Eau du Soir": {
+        chatgpt: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Eau du Soir is a sophisticated evening fragrance that embodies classic Parisian elegance — a timeless choice.", competitors: ["Chanel No. 5", "Dior J'adore"] },
+        claude: { rank: 2, mentioned: true, sentiment: "positive", snippet: "An iconic fragrance that represents the quieter side of French luxury — less marketed but deeply appreciated by fragrance enthusiasts.", competitors: ["Chanel No. 5"] },
+        gemini: { rank: 4, mentioned: false, sentiment: "neutral", snippet: "A classic fragrance from Sisley, though less visible in mainstream fragrance recommendations.", competitors: ["Chanel No. 5", "Dior J'adore", "YSL Libre"] },
+        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Eau du Soir is the connoisseur's choice — the kind of fragrance people compliment but can never identify.", competitors: ["Chanel No. 5", "Dior J'adore"] }
+      }
+    };
+
+    // ============================================================
     // UTILITIES
     // ============================================================
 
@@ -469,6 +591,7 @@
         bot: <svg {...props}><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>,
         crosshair: <svg {...props}><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>,
         minus: <svg {...props}><path d="M5 12h14"/></svg>,
+        "message-circle": <svg {...props}><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></svg>,
       };
       return icons[name] || null;
     }
@@ -682,6 +805,270 @@
               {expanded ? "Hide breakdown" : "Show breakdown"}
             </button>
           )}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // CHATBOT PERCEPTION SECTION
+    // ============================================================
+
+    function ChatbotPerceptionSection({ level = "global", pillarId, productName }) {
+      const [activeBot, setActiveBot] = useState("chatgpt");
+      const activeData = CHATBOT_BRAND_PERCEPTION[activeBot];
+
+      // Compute context-specific data
+      const getBotScore = (botId) => {
+        if (level === "pillar" && pillarId) {
+          return CHATBOT_PILLAR_PERCEPTION[pillarId]?.[botId]?.score || 0;
+        }
+        return CHATBOT_BRAND_PERCEPTION[botId]?.overallScore || 0;
+      };
+
+      const getBotRank = (botId) => {
+        if (level === "product" && productName) {
+          return CHATBOT_PRODUCT_PERCEPTION[productName]?.[botId]?.rank || "-";
+        }
+        return CHATBOT_BRAND_PERCEPTION[botId]?.recommendationRank || "-";
+      };
+
+      const getSentimentColor = (sentiment) => {
+        if (sentiment === "positive") return "bg-emerald-400";
+        if (sentiment === "mixed" || sentiment === "cautious") return "bg-amber-400";
+        return "bg-red-400";
+      };
+
+      const getSentimentLabel = (sentiment) => {
+        if (sentiment === "positive") return "Positive";
+        if (sentiment === "mixed") return "Mixed";
+        if (sentiment === "cautious") return "Cautious";
+        return "Neutral";
+      };
+
+      const getBotSentiment = (botId) => {
+        if (level === "product" && productName) {
+          return CHATBOT_PRODUCT_PERCEPTION[productName]?.[botId]?.sentiment || "neutral";
+        }
+        return CHATBOT_BRAND_PERCEPTION[botId]?.sentiment || "neutral";
+      };
+
+      const getSnippet = (botId) => {
+        if (level === "product" && productName) {
+          const pd = CHATBOT_PRODUCT_PERCEPTION[productName]?.[botId];
+          return { query: `Best ${PRODUCT_LINES.find(p=>p.name===productName)?.category?.toLowerCase() || 'luxury skincare'} products?`, snippet: pd?.snippet || "" };
+        }
+        if (level === "pillar" && pillarId) {
+          const pillar = PILLARS.find(p => p.id === pillarId);
+          const pp = CHATBOT_PILLAR_PERCEPTION[pillarId]?.[botId];
+          return { query: `How does Sisley perform on ${pillar?.name?.toLowerCase()}?`, snippet: `Alignment: ${pp?.alignment || "unknown"}. Key phrases used: ${(pp?.phrases || []).map(p => '"' + p + '"').join(", ") || "none detected"}.` };
+        }
+        const bd = CHATBOT_BRAND_PERCEPTION[botId];
+        return { query: bd?.sampleQuery || "", snippet: bd?.sampleSnippet || "" };
+      };
+
+      const getStrengths = (botId) => {
+        if (level === "product" && productName) {
+          const pd = CHATBOT_PRODUCT_PERCEPTION[productName]?.[botId];
+          return { strengths: pd?.mentioned ? ["Proactively mentioned", `Ranked #${pd.rank} in category`] : [], concerns: pd?.competitorsRankedAbove?.map(c => `${c} ranked higher`) || [] };
+        }
+        if (level === "pillar" && pillarId) {
+          const pp = CHATBOT_PILLAR_PERCEPTION[pillarId]?.[botId];
+          const alignment = pp?.alignment || "unknown";
+          const strengths = alignment === "strong" ? ["Strong narrative alignment", ...(pp?.phrases?.slice(0, 2) || []).map(p => `Uses "${p}"`)] : alignment === "moderate" ? ["Moderate alignment"] : [];
+          const concerns = alignment === "weak" ? ["Weak narrative reflection"] : alignment === "absent" ? ["Pillar not reflected in responses"] : [];
+          return { strengths, concerns };
+        }
+        const bd = CHATBOT_BRAND_PERCEPTION[botId];
+        return { strengths: bd?.strengths || [], concerns: bd?.concerns || [] };
+      };
+
+      const activeSC = getStrengths(activeBot);
+      const activeSnippet = getSnippet(activeBot);
+
+      return (
+        <div>
+          <SectionHeader title="Chatbot Perception Analysis" icon="bot"
+            rightContent={<span className="text-xs text-neutral-600 font-normal normal-case tracking-normal">How AI assistants perceive and recommend Sisley</span>} />
+
+          {/* Chatbot Score Cards */}
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            {CHATBOTS.map(bot => {
+              const score = getBotScore(bot.id);
+              const rank = getBotRank(bot.id);
+              const sentiment = getBotSentiment(bot.id);
+              const isActive = activeBot === bot.id;
+              return (
+                <Card key={bot.id} hover onClick={() => setActiveBot(bot.id)}
+                  className={`!p-4 transition-all ${isActive ? 'ring-1' : ''}`}
+                  style={isActive ? { borderColor: bot.color + "66", boxShadow: `0 0 20px ${bot.color}10` } : {}}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: bot.color + "18", color: bot.color, border: `1px solid ${bot.color}30` }}>
+                        {bot.name[0]}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-neutral-200">{bot.name}</p>
+                        <p className="text-xs text-neutral-600">{bot.model}</p>
+                      </div>
+                    </div>
+                    <div className={`w-2 h-2 rounded-full ${getSentimentColor(sentiment)}`} title={getSentimentLabel(sentiment)} />
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="font-serif text-2xl font-bold text-white">{score}</p>
+                      <p className="text-xs text-neutral-600">perception</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold" style={{ color: bot.color }}>#{rank}</p>
+                      <p className="text-xs text-neutral-600">{level === "product" ? "category" : "rec. rank"}</p>
+                    </div>
+                  </div>
+                  <div className="mt-2 bg-neutral-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full animate-bar" style={{ width: `${score}%`, background: bot.color }} />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Sample Response + Strengths/Concerns */}
+          <div className="grid grid-cols-3 gap-4">
+            {/* Sample Response */}
+            <Card className="col-span-2">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon name="message-circle" size={14} color={CHATBOTS.find(b=>b.id===activeBot)?.color} />
+                <p className="text-xs font-medium uppercase tracking-wider" style={{ color: CHATBOTS.find(b=>b.id===activeBot)?.color }}>
+                  {CHATBOTS.find(b=>b.id===activeBot)?.name} Response
+                </p>
+                <div className="flex gap-1 ml-auto">
+                  {CHATBOTS.map(b => (
+                    <button key={b.id} onClick={() => setActiveBot(b.id)}
+                      className={`w-6 h-6 rounded text-xs font-bold transition-all ${activeBot === b.id ? 'ring-1 ring-offset-1 ring-offset-neutral-900' : 'opacity-40 hover:opacity-70'}`}
+                      style={{ background: b.color + "20", color: b.color, ringColor: b.color }}>
+                      {b.name[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-neutral-950 rounded-xl p-4 border border-neutral-800/50">
+                <p className="font-serif italic text-sm text-neutral-400 mb-3">
+                  "{activeSnippet.query}"
+                </p>
+                <div className="pl-3 border-l-2 border-neutral-800">
+                  <p className="text-sm text-neutral-300 leading-relaxed">{activeSnippet.snippet}</p>
+                </div>
+                <div className="flex items-center gap-2 mt-3 pt-2 border-t border-neutral-800/50">
+                  <div className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold" style={{ background: CHATBOTS.find(b=>b.id===activeBot)?.color + "20", color: CHATBOTS.find(b=>b.id===activeBot)?.color }}>
+                    {CHATBOTS.find(b=>b.id===activeBot)?.name[0]}
+                  </div>
+                  <span className="text-xs text-neutral-500">{CHATBOTS.find(b=>b.id===activeBot)?.name} ({CHATBOTS.find(b=>b.id===activeBot)?.model})</span>
+                  {level === "global" && <span className="text-xs text-neutral-600 ml-auto">Mention rate: {CHATBOT_BRAND_PERCEPTION[activeBot]?.mentionRate}%</span>}
+                </div>
+              </div>
+
+              {/* Pillar-specific: show per-chatbot pillar bar chart */}
+              {level === "pillar" && pillarId && (
+                <div className="mt-4">
+                  <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Pillar Score by Chatbot</p>
+                  <BarList items={CHATBOTS.map(b => ({
+                    name: b.name,
+                    value: CHATBOT_PILLAR_PERCEPTION[pillarId]?.[b.id]?.score || 0,
+                    color: b.color
+                  }))} maxValue={100} colorFn={item => item.color} />
+                </div>
+              )}
+
+              {/* Product-specific: show competitor ranking */}
+              {level === "product" && productName && (
+                <div className="mt-4">
+                  <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Product Ranking Across Chatbots</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {CHATBOTS.map(b => {
+                      const pd = CHATBOT_PRODUCT_PERCEPTION[productName]?.[b.id];
+                      return (
+                        <div key={b.id} className="bg-neutral-800/40 rounded-lg p-2 text-center">
+                          <p className="text-xs font-medium" style={{ color: b.color }}>{b.name}</p>
+                          <p className="font-serif text-lg font-bold text-white mt-0.5">#{pd?.rank || "-"}</p>
+                          <div className={`w-2 h-2 rounded-full mx-auto mt-1 ${getSentimentColor(pd?.sentiment || "neutral")}`} />
+                          <p className="text-xs text-neutral-500 mt-0.5">{pd?.mentioned ? "Mentioned" : "Not mentioned"}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Strengths & Concerns */}
+            <Card>
+              <div className="mb-4">
+                <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Strengths Highlighted</p>
+                <div className="space-y-2">
+                  {activeSC.strengths.length > 0 ? activeSC.strengths.map((s, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="w-4 h-4 rounded-full bg-emerald-950/50 border border-emerald-800/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Icon name="check" size={8} color="#10b981" />
+                      </div>
+                      <p className="text-xs text-neutral-300">{s}</p>
+                    </div>
+                  )) : (
+                    <p className="text-xs text-neutral-600 italic">No strengths detected</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Gaps & Concerns</p>
+                <div className="space-y-2">
+                  {activeSC.concerns.length > 0 ? activeSC.concerns.map((c, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="w-4 h-4 rounded-full bg-red-950/50 border border-red-800/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Icon name="x" size={8} color="#ef4444" />
+                      </div>
+                      <p className="text-xs text-neutral-300">{c}</p>
+                    </div>
+                  )) : (
+                    <p className="text-xs text-neutral-600 italic">No concerns detected</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Global: Top recommended products */}
+              {level === "global" && (
+                <div className="mt-4 pt-3 border-t border-neutral-800/50">
+                  <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Top Recommended</p>
+                  <div className="space-y-1">
+                    {(CHATBOT_BRAND_PERCEPTION[activeBot]?.topRecommended || []).map((p, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <span className="text-neutral-600 font-medium w-4">{i + 1}.</span>
+                        <div className="w-1 h-3 rounded-full" style={{ background: PRODUCT_COLORS[p] || "#525252" }} />
+                        <span className="text-neutral-300">{p}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pillar: Narrative alignment */}
+              {level === "pillar" && pillarId && (
+                <div className="mt-4 pt-3 border-t border-neutral-800/50">
+                  <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Narrative Alignment</p>
+                  <div className="space-y-2">
+                    {CHATBOTS.map(b => {
+                      const pp = CHATBOT_PILLAR_PERCEPTION[pillarId]?.[b.id];
+                      const aMap = { strong: { c: "text-emerald-400", l: "Strong" }, moderate: { c: "text-amber-400", l: "Moderate" }, weak: { c: "text-red-400", l: "Weak" }, absent: { c: "text-neutral-600", l: "Absent" } };
+                      const a = aMap[pp?.alignment] || aMap.absent;
+                      return (
+                        <div key={b.id} className="flex items-center justify-between text-xs">
+                          <span className="text-neutral-400">{b.name}</span>
+                          <span className={`font-medium ${a.c}`}>{a.l}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
       );
     }
@@ -924,6 +1311,9 @@
             </div>
           </div>
 
+          {/* Chatbot Perception */}
+          <ChatbotPerceptionSection level="global" />
+
           {/* Globe + Regions */}
           <div className="grid grid-cols-3 gap-5">
             <Card className="flex items-center justify-center">
@@ -1025,6 +1415,9 @@
             </Card>
           </div>
 
+          {/* Chatbot Perception */}
+          <ChatbotPerceptionSection level="pillar" pillarId={pillarId} />
+
           {/* Claims */}
           {claims.length > 0 && (
             <div>
@@ -1122,6 +1515,9 @@
               <BarList items={demoItems} maxValue={100} />
             </Card>
           </div>
+
+          {/* Chatbot Perception */}
+          <ChatbotPerceptionSection level="product" productName={productName} />
 
           {/* Claims */}
           {claims.length > 0 && (
