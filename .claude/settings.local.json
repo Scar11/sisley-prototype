@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l 'D:\\\\spike\\\\sis\\\\sisley-narrative-penetration \\(1\\).html')",
+      "Bash(stat \"D:\\\\spike\\\\sis\\\\sisley-narrative-penetration \\(1\\).html\")",
+      "Bash(tail:*)",
+      "Bash(strings \"D:\\\\spike\\\\sis\\\\sisley-narrative-penetration \\(1\\).html\")",
+      "Bash(grep -a -o \".{0,150}Black Rose.{0,150}\" \"D:\\\\spike\\\\sis\\\\sisley-narrative-penetration \\(1\\).html\")",
+      "Bash(grep -a -o \".{0,100}pillar.{0,200}\" \"D:\\\\spike\\\\sis\\\\sisley-narrative-penetration \\(1\\).html\")",
+      "Bash(grep -o '{name:\"\"\"\"[^\"\"\"\"]*\"\"\"\",score:[0-9]*,' \"D:\\\\spike\\\\sis\\\\sisley-narrative-penetration \\(1\\).html\")",
+      "Bash(grep -o '{id:\"\"\"\"[^\"\"\"\"]*\"\"\"\",name:\"\"\"\"[^\"\"\"\"]*\"\"\"\",region:\"\"\"\"[^\"\"\"\"]*\"\"\"\",score:[0-9]*' \"D:\\\\spike\\\\sis\\\\sisley-narrative-penetration \\(1\\).html\")",
+      "Bash(head:*)",
+      "Bash(grep -oP 'var [a-zA-Z_$]+\\\\s*=' \"D:/spike/sis/sisley-narrative-penetration \\(1\\).html\")",
+      "Bash(cat \"D:/spike/sis/sisley-narrative-penetration \\(1\\).html\")",
+      "Bash(tr ';' '\\\\n')",
+      "Bash(sed 's/\\\\$Y=/\\\\n\\\\$Y=/g')",
+      "Bash(grep \"^$Y=\")"
+    ]
+  }
+}
