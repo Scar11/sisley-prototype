@@ -1,0 +1,2520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sisley Paris — Narrative Penetration</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['DM Sans', 'Inter', 'system-ui', 'sans-serif'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: #0a0a0a; font-family: 'Inter', sans-serif; }
+    #root { height: 100vh; overflow: hidden; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes barGrow { from { width: 0%; } }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    .animate-bar { animation: barGrow 0.8s ease-out forwards; }
+    .animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    .animate-spin { animation: spin 1s linear infinite; }
+    .stagger-1 { animation-delay: 0.05s; }
+    .stagger-2 { animation-delay: 0.1s; }
+    .stagger-3 { animation-delay: 0.15s; }
+    .stagger-4 { animation-delay: 0.2s; }
+    .stagger-5 { animation-delay: 0.25s; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    // ============================================================
+    // DATA
+    // ============================================================
+
+    const BRAND = { name: "Sisley Paris", sector: "Luxury Cosmetics" };
+    const OVERALL_SCORE = 71;
+    const OVERALL_TREND = 2;
+    const DATE_RANGE = "Mar 1 – 27, 2026";
+
+    const PILLARS = [
+      { id: "efficacy", name: "Product Efficacy", score: 76, weight: 25, trend: 5, color: "#7c3aed", icon: "flask", summary: "Customers increasingly validate anti-aging claims. Sisleÿa and Black Rose lines driving positive clinical perception." },
+      { id: "prestige", name: "Brand Prestige", score: 82, weight: 20, trend: 2, color: "#b45309", icon: "star", summary: "Strong luxury positioning maintained. Heritage narrative resonating with HNW segment. Slight dilution risk from broader distribution." },
+      { id: "ingredients", name: "Ingredient Trust", score: 69, weight: 20, trend: -4, color: "#0d9488", icon: "leaf", summary: "Clean beauty expectations creating pressure. Phyto-cosmetology narrative is strong but transparency gaps around sourcing are emerging." },
+      { id: "sustainability", name: "Sustainability & Ethics", score: 58, weight: 15, trend: 3, color: "#16a34a", icon: "globe", summary: "Improving but behind peers. Packaging sustainability questioned. Cruelty-free credentials need clearer communication." },
+      { id: "value", name: "Value Perception", score: 64, weight: 20, trend: -2, color: "#dc2626", icon: "dollar", summary: "Premium pricing under scrutiny as competitors close efficacy gap. Loyalty remains high but trial conversion declining." }
+    ];
+
+    const MONTHS = ["Apr 25","May 25","Jun 25","Jul 25","Aug 25","Sep 25","Oct 25","Nov 25","Dec 25","Jan 26","Feb 26","Mar 26"];
+
+    const MONTHLY_TREND = MONTHS.map((m,i) => ({ month: m, score: [66,67,67,68,69,68,69,70,70,71,71,71][i] }));
+
+    const PILLAR_TRENDS = {
+      efficacy: MONTHS.map((m,i) => ({ month: m, score: [68,69,70,71,72,71,73,74,74,75,76,76][i] })),
+      prestige: MONTHS.map((m,i) => ({ month: m, score: [79,79,80,80,80,81,81,81,82,82,82,82][i] })),
+      ingredients: MONTHS.map((m,i) => ({ month: m, score: [72,72,71,71,70,70,70,69,69,69,69,69][i] })),
+      sustainability: MONTHS.map((m,i) => ({ month: m, score: [54,54,55,55,55,56,56,57,57,57,58,58][i] })),
+      value: MONTHS.map((m,i) => ({ month: m, score: [66,66,65,65,65,65,64,64,64,64,64,64][i] }))
+    };
+
+    const PILLAR_SIGNALS = {
+      efficacy: [
+        { title: "Sisleÿa L'Intégral clinical trial results published in Journal of Dermatology", source: "Journal of Dermatology", date: "Feb 2026", sentiment: "positive", relevance: 92 },
+        { title: "Clean at Sephora certification achieved for top 5 SKUs — 22% rating uplift", source: "Sephora", date: "Jan 2026", sentiment: "positive", relevance: 88 },
+        { title: "Hydra-Global Sephora rating recovered from 3.6 → 4.3 stars post-reformulation", source: "Sephora Reviews", date: "Mar 2026", sentiment: "positive", relevance: 85 },
+        { title: "TikTok skepticism around SPF claims in Sunleÿa G.E. gains traction", source: "TikTok / Social", date: "Feb 2026", sentiment: "negative", relevance: 78 },
+        { title: "82% dermatologist favorability for phyto-cosmetology positioning", source: "Dermatology Panel", date: "Jan 2026", sentiment: "positive", relevance: 90 }
+      ],
+      prestige: [
+        { title: "Countess Hubert d'Ornano heritage story reaches 40M+ impressions via Condé Nast", source: "Condé Nast", date: "Mar 2026", sentiment: "positive", relevance: 94 },
+        { title: "Allure editors include Black Rose in Spring luxury roundup", source: "Allure Magazine", date: "Mar 2026", sentiment: "positive", relevance: 88 },
+        { title: "Net-a-Porter conversion rate up 12% after editorial feature", source: "Net-a-Porter", date: "Feb 2026", sentiment: "positive", relevance: 82 },
+        { title: "Leaping Bunny certification video reaches 800K views on TikTok", source: "TikTok", date: "Jan 2026", sentiment: "positive", relevance: 76 },
+        { title: "Broader distribution risk: Sisley spotted in non-premium retail channels", source: "Market Analysis", date: "Mar 2026", sentiment: "negative", relevance: 70 }
+      ],
+      ingredients: [
+        { title: "EWG raises concerns about fragrance compound disclosure in Eau du Soir", source: "EWG Report", date: "Feb 2026", sentiment: "negative", relevance: 90 },
+        { title: "Clean Beauty Index ranks Sisley 14th of 50 luxury brands, down from 9th", source: "Clean Beauty Index", date: "Jan 2026", sentiment: "negative", relevance: 86 },
+        { title: "Phyto-cosmetology narrative resonates: 82% awareness among target demo", source: "Brand Tracking", date: "Mar 2026", sentiment: "positive", relevance: 80 },
+        { title: "Sourcing transparency gaps emerging in ingredient origin documentation", source: "Supply Chain Audit", date: "Feb 2026", sentiment: "negative", relevance: 84 },
+        { title: "COSMOS certification drives 18% increase in dermatologist recommendations", source: "Certification Body", date: "Jan 2026", sentiment: "positive", relevance: 78 }
+      ],
+      sustainability: [
+        { title: "2028 recyclable packaging pledge viewed as late vs. competitor timelines", source: "Industry Analysis", date: "Mar 2026", sentiment: "negative", relevance: 88 },
+        { title: "Sisley Foundation reforestation program gains positive media coverage", source: "Media", date: "Feb 2026", sentiment: "positive", relevance: 76 },
+        { title: "Leaping Bunny cruelty-free certification strengthens ethics positioning", source: "Leaping Bunny", date: "Jan 2026", sentiment: "positive", relevance: 82 },
+        { title: "Packaging sustainability questioned in beauty editor roundtable", source: "Beauty Panel", date: "Mar 2026", sentiment: "negative", relevance: 74 },
+        { title: "Sustainability story generates 4.1M organic impressions", source: "Social Analytics", date: "Feb 2026", sentiment: "positive", relevance: 80 }
+      ],
+      value: [
+        { title: "Amazon grey-market discounting diluting exclusivity perception", source: "Amazon / Market", date: "Mar 2026", sentiment: "negative", relevance: 92 },
+        { title: "Brazilian market underindexing despite 18% YoY luxury growth", source: "Market Research", date: "Feb 2026", sentiment: "negative", relevance: 84 },
+        { title: "Cost-per-use narrative resonates with Luxury Loyalists segment", source: "Consumer Research", date: "Jan 2026", sentiment: "positive", relevance: 78 },
+        { title: "Competitors close efficacy gap, challenging price premium justification", source: "Competitive Intel", date: "Mar 2026", sentiment: "negative", relevance: 86 },
+        { title: "Loyalty program members show 40% higher LTV", source: "CRM Data", date: "Feb 2026", sentiment: "positive", relevance: 74 }
+      ]
+    };
+
+    const PILLAR_DEMOGRAPHICS = {
+      efficacy: [{ name: "Luxury Loyalists", score: 80 }, { name: "Skincare Enthusiasts", score: 82 }, { name: "Beauty Editors", score: 78 }, { name: "Dermatologists", score: 84 }, { name: "Gen Z", score: 58 }],
+      prestige: [{ name: "Luxury Loyalists", score: 90 }, { name: "Skincare Enthusiasts", score: 76 }, { name: "Beauty Editors", score: 88 }, { name: "Dermatologists", score: 72 }, { name: "Gen Z", score: 64 }],
+      ingredients: [{ name: "Luxury Loyalists", score: 72 }, { name: "Skincare Enthusiasts", score: 74 }, { name: "Beauty Editors", score: 68 }, { name: "Dermatologists", score: 78 }, { name: "Gen Z", score: 52 }],
+      sustainability: [{ name: "Luxury Loyalists", score: 56 }, { name: "Skincare Enthusiasts", score: 62 }, { name: "Beauty Editors", score: 60 }, { name: "Dermatologists", score: 54 }, { name: "Gen Z", score: 68 }],
+      value: [{ name: "Luxury Loyalists", score: 74 }, { name: "Skincare Enthusiasts", score: 60 }, { name: "Beauty Editors", score: 66 }, { name: "Dermatologists", score: 62 }, { name: "Gen Z", score: 48 }]
+    };
+
+    const PILLAR_COMPETITORS = {
+      efficacy: [{ name: "Sisley", score: 76 }, { name: "La Mer", score: 74 }, { name: "Augustinus Bader", score: 78 }, { name: "Chanel", score: 70 }, { name: "La Prairie", score: 72 }],
+      prestige: [{ name: "Sisley", score: 82 }, { name: "La Mer", score: 88 }, { name: "Augustinus Bader", score: 72 }, { name: "Chanel", score: 90 }, { name: "La Prairie", score: 86 }],
+      ingredients: [{ name: "Sisley", score: 69 }, { name: "La Mer", score: 62 }, { name: "Augustinus Bader", score: 80 }, { name: "Chanel", score: 58 }, { name: "La Prairie", score: 64 }],
+      sustainability: [{ name: "Sisley", score: 58 }, { name: "La Mer", score: 52 }, { name: "Augustinus Bader", score: 68 }, { name: "Chanel", score: 62 }, { name: "La Prairie", score: 48 }],
+      value: [{ name: "Sisley", score: 64 }, { name: "La Mer", score: 56 }, { name: "Augustinus Bader", score: 60 }, { name: "Chanel", score: 66 }, { name: "La Prairie", score: 54 }]
+    };
+
+    const PILLAR_SOV = {
+      efficacy: [{ name: "Trade Press", pct: 28 }, { name: "Social Media", pct: 24 }, { name: "Beauty Blogs", pct: 18 }, { name: "Scientific", pct: 15 }, { name: "Consumer Reviews", pct: 10 }, { name: "Mainstream", pct: 5 }],
+      prestige: [{ name: "Trade Press", pct: 22 }, { name: "Social Media", pct: 30 }, { name: "Beauty Blogs", pct: 12 }, { name: "Scientific", pct: 5 }, { name: "Consumer Reviews", pct: 8 }, { name: "Mainstream", pct: 23 }],
+      ingredients: [{ name: "Trade Press", pct: 20 }, { name: "Social Media", pct: 32 }, { name: "Beauty Blogs", pct: 22 }, { name: "Scientific", pct: 12 }, { name: "Consumer Reviews", pct: 10 }, { name: "Mainstream", pct: 4 }],
+      sustainability: [{ name: "Trade Press", pct: 18 }, { name: "Social Media", pct: 36 }, { name: "Beauty Blogs", pct: 14 }, { name: "Scientific", pct: 8 }, { name: "Consumer Reviews", pct: 6 }, { name: "Mainstream", pct: 18 }],
+      value: [{ name: "Trade Press", pct: 16 }, { name: "Social Media", pct: 28 }, { name: "Beauty Blogs", pct: 20 }, { name: "Scientific", pct: 4 }, { name: "Consumer Reviews", pct: 22 }, { name: "Mainstream", pct: 10 }]
+    };
+
+    const AI_NARRATIVES = {
+      landing: "Sisley Paris maintains a strong overall narrative position at 71, driven by enduring brand prestige and improving product efficacy perception. The brand's phyto-cosmetology story continues to resonate with core luxury consumers, though emerging challenges around ingredient transparency and sustainability are creating headwinds. Strategic focus on clinical validation and heritage storytelling is delivering measurable gains.",
+      efficacy: "Product efficacy perception has strengthened significantly to 76, driven by clinical validation of Sisleÿa and Hydra-Global lines. The Clean at Sephora certification for top SKUs boosted credibility, with a 22% rating uplift. Dermatologist endorsement remains strong at 82% favorability. However, TikTok-driven skepticism around SPF claims in Sunleÿa G.E. presents a risk requiring proactive response.",
+      prestige: "Brand prestige holds firm at 82, underpinned by the d'Ornano family heritage narrative which reached 40M+ impressions via Condé Nast. Editor endorsements from Allure and Vogue continue to reinforce luxury positioning. However, sightings in non-premium retail channels pose a dilution risk that requires monitoring.",
+      ingredients: "Ingredient trust is under pressure at 69, declining 4 points. EWG scrutiny of fragrance compounds in Eau du Soir and a Clean Beauty Index drop from 9th to 14th signal growing transparency expectations. The phyto-cosmetology narrative provides a foundation, but concrete sourcing transparency initiatives are needed to reverse the trend.",
+      sustainability: "Sustainability perception at 58 is the weakest pillar but improving (+3). The 2028 recyclable packaging pledge is perceived as late versus peers. Leaping Bunny certification and the Foundation's reforestation program provide credibility anchors. Accelerating the sustainability roadmap could yield outsized perception gains.",
+      value: "Value perception at 64 faces dual pressure: Amazon grey-market discounting undermines exclusivity, while competitors narrow the efficacy gap, challenging premium pricing. The cost-per-use narrative shows promise with core segments. Loyalty program members demonstrate 40% higher LTV, suggesting deeper relationship investment could stabilize value perception."
+    };
+
+    const PRODUCT_COLORS = {
+      "Black Rose": "#9f1239",
+      "Sisleÿa L'Intégral": "#c4a265",
+      "Hydra-Global": "#0ea5e9",
+      "Sunleÿa G.E.": "#f59e0b",
+      "Phyto-Blanc Le Concentré": "#a78bfa",
+      "Eau du Soir": "#6366f1"
+    };
+
+    const PRODUCT_LINES = [
+      { name: "Black Rose", category: "Skincare", score: 84, trend: 3 },
+      { name: "Sisleÿa L'Intégral", category: "Anti-Aging", score: 78, trend: 4 },
+      { name: "Hydra-Global", category: "Moisturizing", score: 72, trend: 2 },
+      { name: "Sunleÿa G.E.", category: "Sun Care", score: 68, trend: -1 },
+      { name: "Phyto-Blanc Le Concentré", category: "Brightening", score: 76, trend: 5 },
+      { name: "Eau du Soir", category: "Fragrance", score: 80, trend: 1 }
+    ];
+
+    const PRODUCT_NARRATIVES = {
+      "Black Rose": "Black Rose is Sisley's strongest performer at 84, anchored by exceptional efficacy perception and prestige. The Allure Spring luxury roundup inclusion and strong editor endorsements drive premium positioning. Geographic strength is concentrated in Europe and North America. Sustainability remains a gap, with sourcing transparency for rare botanicals under scrutiny.",
+      "Sisleÿa L'Intégral": "Sisleÿa L'Intégral is gaining momentum at 78, up 4 points, driven by published clinical trial results and the phyto-cosmetology positioning. APAC markets show particular strength as the anti-aging category grows. The product benefits from strong dermatologist endorsement but faces challenges in communicating value proposition to price-sensitive segments.",
+      "Hydra-Global": "Hydra-Global has recovered to 72 following the texture reformulation that addressed quality concerns. The Sephora rating recovery from 3.6 to 4.3 stars validates the response strategy. Value perception is relatively strong for this line, making it a strong trial-conversion product. Ingredient trust needs strengthening.",
+      "Sunleÿa G.E.": "Sunleÿa G.E. faces headwinds at 68, with TikTok-driven SPF skepticism creating a -1 trend. While consumer trust index improved by 18 points, the social narrative requires active management. APAC and Europe are strongest markets. Sustainability concerns around sun care packaging add pressure.",
+      "Phyto-Blanc Le Concentré": "Phyto-Blanc Le Concentré is the fastest-growing line at 76, up 5 points, powered by #1 brightening serum status on Xiaohongshu and 82% dermatologist favorability. APAC is the primary growth driver. The product's clinical positioning resonates strongly but sustainability and value perceptions need support.",
+      "Eau du Soir": "Eau du Soir maintains strong prestige perception at 88 but faces ingredient trust challenges. EWG concerns about fragrance compound disclosure have created headwinds. The product excels in the Middle East and European markets. Heritage storytelling around the fragrance's legacy provides a strong narrative foundation."
+    };
+
+    const PRODUCT_PILLAR_SCORES = {
+      "Black Rose": { efficacy: 88, prestige: 85, ingredients: 72, sustainability: 60, value: 70 },
+      "Sisleÿa L'Intégral": { efficacy: 82, prestige: 80, ingredients: 74, sustainability: 55, value: 62 },
+      "Hydra-Global": { efficacy: 70, prestige: 68, ingredients: 66, sustainability: 52, value: 72 },
+      "Sunleÿa G.E.": { efficacy: 74, prestige: 72, ingredients: 64, sustainability: 62, value: 58 },
+      "Phyto-Blanc Le Concentré": { efficacy: 80, prestige: 76, ingredients: 70, sustainability: 54, value: 66 },
+      "Eau du Soir": { efficacy: 65, prestige: 88, ingredients: 68, sustainability: 56, value: 74 }
+    };
+
+    const PRODUCT_GEO_SCORES = {
+      "Black Rose": { "Europe": 86, "Asia-Pacific": 80, "North America": 82, "Middle East": 78, "Latin America": 68 },
+      "Sisleÿa L'Intégral": { "Europe": 80, "Asia-Pacific": 82, "North America": 74, "Middle East": 76, "Latin America": 62 },
+      "Hydra-Global": { "Europe": 74, "Asia-Pacific": 70, "North America": 72, "Middle East": 68, "Latin America": 60 },
+      "Sunleÿa G.E.": { "Europe": 72, "Asia-Pacific": 66, "North America": 70, "Middle East": 64, "Latin America": 56 },
+      "Phyto-Blanc Le Concentré": { "Europe": 72, "Asia-Pacific": 84, "North America": 74, "Middle East": 70, "Latin America": 58 },
+      "Eau du Soir": { "Europe": 84, "Asia-Pacific": 76, "North America": 78, "Middle East": 86, "Latin America": 66 }
+    };
+
+    const PRODUCT_DEMO_SCORES = {
+      "Black Rose": { "Luxury Loyalists": 88, "Skincare Enthusiasts": 86, "Beauty Editors": 90, "Dermatologists": 78, "Gen Z": 62 },
+      "Sisleÿa L'Intégral": { "Luxury Loyalists": 82, "Skincare Enthusiasts": 80, "Beauty Editors": 78, "Dermatologists": 86, "Gen Z": 48 },
+      "Hydra-Global": { "Luxury Loyalists": 68, "Skincare Enthusiasts": 76, "Beauty Editors": 66, "Dermatologists": 72, "Gen Z": 64 },
+      "Sunleÿa G.E.": { "Luxury Loyalists": 70, "Skincare Enthusiasts": 66, "Beauty Editors": 68, "Dermatologists": 74, "Gen Z": 54 },
+      "Phyto-Blanc Le Concentré": { "Luxury Loyalists": 78, "Skincare Enthusiasts": 82, "Beauty Editors": 76, "Dermatologists": 84, "Gen Z": 60 },
+      "Eau du Soir": { "Luxury Loyalists": 86, "Skincare Enthusiasts": 72, "Beauty Editors": 84, "Dermatologists": 66, "Gen Z": 52 }
+    };
+
+    const PRODUCT_TRENDS = {
+      "Black Rose": MONTHS.map((m,i) => ({ month: m, score: [78,79,79,80,81,81,82,82,83,83,84,84][i] })),
+      "Sisleÿa L'Intégral": MONTHS.map((m,i) => ({ month: m, score: [72,72,73,74,74,75,75,76,76,77,77,78][i] })),
+      "Hydra-Global": MONTHS.map((m,i) => ({ month: m, score: [68,68,69,69,70,70,70,71,71,71,72,72][i] })),
+      "Sunleÿa G.E.": MONTHS.map((m,i) => ({ month: m, score: [69,69,69,69,68,68,68,68,68,68,68,68][i] })),
+      "Phyto-Blanc Le Concentré": MONTHS.map((m,i) => ({ month: m, score: [68,69,70,71,72,72,73,74,74,75,76,76][i] })),
+      "Eau du Soir": MONTHS.map((m,i) => ({ month: m, score: [78,78,79,79,79,79,80,80,80,80,80,80][i] }))
+    };
+
+    const PRODUCT_SIGNALS = {
+      "Black Rose": [
+        { title: "Allure editors include Black Rose in Spring luxury roundup", source: "Allure Magazine", date: "Mar 2026", sentiment: "positive", relevance: 92 },
+        { title: "Black Rose Cream Mask achieves cult status on beauty forums", source: "Beauty Forums", date: "Feb 2026", sentiment: "positive", relevance: 86 },
+        { title: "Dermatologist TikTok review generates 2.1M views for Black Rose Oil", source: "TikTok", date: "Mar 2026", sentiment: "positive", relevance: 84 },
+        { title: "Sustainability questions around rare botanical sourcing", source: "Clean Beauty Blog", date: "Jan 2026", sentiment: "negative", relevance: 72 },
+        { title: "Net-a-Porter reports Black Rose as top luxury skincare seller Q1", source: "Net-a-Porter", date: "Mar 2026", sentiment: "positive", relevance: 90 }
+      ],
+      "Sisleÿa L'Intégral": [
+        { title: "Clinical trial results published in peer-reviewed dermatology journal", source: "Journal of Dermatology", date: "Feb 2026", sentiment: "positive", relevance: 94 },
+        { title: "APAC anti-aging market growth positions Sisleÿa for expansion", source: "Market Research", date: "Mar 2026", sentiment: "positive", relevance: 82 },
+        { title: "Price sensitivity increasing among trial segment in North America", source: "Consumer Panel", date: "Feb 2026", sentiment: "negative", relevance: 76 },
+        { title: "Dermatologist endorsement program reaches 500+ practitioners", source: "Medical Relations", date: "Jan 2026", sentiment: "positive", relevance: 88 },
+        { title: "Phyto-complex story resonates in Japanese premium beauty market", source: "Japan Market Intel", date: "Mar 2026", sentiment: "positive", relevance: 80 }
+      ],
+      "Hydra-Global": [
+        { title: "Sephora rating recovered from 3.6 → 4.3 stars after reformulation", source: "Sephora Reviews", date: "Mar 2026", sentiment: "positive", relevance: 90 },
+        { title: "Texture reformulation addresses key consumer complaints", source: "R&D", date: "Jan 2026", sentiment: "positive", relevance: 86 },
+        { title: "Strong trial-to-purchase conversion rate of 34%", source: "CRM Data", date: "Feb 2026", sentiment: "positive", relevance: 78 },
+        { title: "Ingredient origin questions from clean beauty community", source: "Beauty Forums", date: "Mar 2026", sentiment: "negative", relevance: 70 },
+        { title: "Value positioning resonates: favorable cost-per-use perception", source: "Consumer Research", date: "Feb 2026", sentiment: "positive", relevance: 74 }
+      ],
+      "Sunleÿa G.E.": [
+        { title: "TikTok SPF skepticism creates narrative headwind", source: "TikTok / Social", date: "Mar 2026", sentiment: "negative", relevance: 88 },
+        { title: "Consumer trust index improves +18 points after dermatologist response", source: "Brand Tracking", date: "Feb 2026", sentiment: "positive", relevance: 82 },
+        { title: "APAC sun care market growing 15% — opportunity for G.E.", source: "Market Research", date: "Jan 2026", sentiment: "positive", relevance: 76 },
+        { title: "Eco-packaging concerns raised for sun care category", source: "Sustainability Report", date: "Mar 2026", sentiment: "negative", relevance: 72 },
+        { title: "European demand stable with premium positioning intact", source: "EU Market Intel", date: "Feb 2026", sentiment: "positive", relevance: 74 }
+      ],
+      "Phyto-Blanc Le Concentré": [
+        { title: "#1 brightening serum on Xiaohongshu — massive APAC momentum", source: "Xiaohongshu", date: "Mar 2026", sentiment: "positive", relevance: 94 },
+        { title: "82% dermatologist favorability for brightening claims", source: "Dermatology Panel", date: "Feb 2026", sentiment: "positive", relevance: 90 },
+        { title: "South Korean beauty editors feature in spring roundup", source: "K-Beauty Press", date: "Mar 2026", sentiment: "positive", relevance: 84 },
+        { title: "Value perception weak vs. competitor brightening serums", source: "Competitive Intel", date: "Jan 2026", sentiment: "negative", relevance: 68 },
+        { title: "Clinical measurement validates visible results in 4 weeks", source: "Clinical Trial", date: "Feb 2026", sentiment: "positive", relevance: 88 }
+      ],
+      "Eau du Soir": [
+        { title: "Heritage storytelling: d'Ornano family fragrance legacy resonates", source: "Brand Content", date: "Mar 2026", sentiment: "positive", relevance: 90 },
+        { title: "EWG raises concerns about fragrance compound disclosure", source: "EWG Report", date: "Feb 2026", sentiment: "negative", relevance: 88 },
+        { title: "Middle East gift market: Eau du Soir in top 3 luxury fragrances", source: "Retail Data", date: "Jan 2026", sentiment: "positive", relevance: 84 },
+        { title: "Gen Z fragrance transparency expectations creating pressure", source: "Consumer Research", date: "Mar 2026", sentiment: "negative", relevance: 76 },
+        { title: "Harrods exclusive set drives 28% uplift in holiday period", source: "Harrods", date: "Feb 2026", sentiment: "positive", relevance: 82 }
+      ]
+    };
+
+    const REGIONS = [
+      { name: "Europe", score: 74, trend: 2, dotX: "54%", dotY: "28%" },
+      { name: "Asia-Pacific", score: 72, trend: 3, dotX: "76%", dotY: "44%" },
+      { name: "Middle East", score: 71, trend: 1, dotX: "62%", dotY: "40%" },
+      { name: "North America", score: 68, trend: -1, dotX: "26%", dotY: "32%" },
+      { name: "Latin America", score: 62, trend: 2, dotX: "32%", dotY: "62%" }
+    ];
+
+    const REGION_DETAILS = {
+      "Europe": {
+        summary: "European perception leads at 74, driven by Sisley's French heritage advantage. Clean beauty regulatory momentum is creating both opportunity and pressure. Vogue Paris and Le Figaro coverage reinforce prestige. Key markets: France, UK, Germany.",
+        signals: [
+          { title: "Vogue Paris feature on phyto-cosmetology heritage", source: "Vogue Paris", date: "Mar 2026", sentiment: "positive", relevance: 90 },
+          { title: "EU Clean Beauty Regulation creates reformulation pressure", source: "EU Regulatory", date: "Feb 2026", sentiment: "negative", relevance: 84 },
+          { title: "Le Figaro luxury consumer survey: Sisley in top 5 awareness", source: "Le Figaro", date: "Jan 2026", sentiment: "positive", relevance: 82 },
+          { title: "UK market softening in luxury segment", source: "Market Research", date: "Mar 2026", sentiment: "negative", relevance: 72 }
+        ]
+      },
+      "Asia-Pacific": {
+        summary: "Asia-Pacific is the fastest-growing region at 72, driven by brightening category momentum in Japan and South Korea. Chinese HNW consumers show strong affinity. TikTok SPF skepticism in this region requires active narrative management.",
+        signals: [
+          { title: "Xiaohongshu: Phyto-Blanc reaches #1 brightening serum", source: "Xiaohongshu", date: "Mar 2026", sentiment: "positive", relevance: 94 },
+          { title: "Japanese dermatologists endorse phyto-cosmetology approach", source: "Medical Panel", date: "Feb 2026", sentiment: "positive", relevance: 86 },
+          { title: "TikTok SPF skepticism trending in Southeast Asia", source: "Social Analysis", date: "Mar 2026", sentiment: "negative", relevance: 80 },
+          { title: "Korean luxury beauty market expansion opportunity", source: "Market Report", date: "Jan 2026", sentiment: "positive", relevance: 78 }
+        ]
+      },
+      "Middle East": {
+        summary: "Middle East holds steady at 71 with strong HNW affinity and gift culture alignment. Limited digital presence constrains growth. Premium retail in Dubai and Abu Dhabi is strong.",
+        signals: [
+          { title: "Dubai luxury beauty market grows 22% YoY", source: "Market Research", date: "Feb 2026", sentiment: "positive", relevance: 86 },
+          { title: "Harrods Dubai partnership deepens gifting channel", source: "Retail", date: "Mar 2026", sentiment: "positive", relevance: 82 },
+          { title: "Digital presence gaps limit Gen Z reach", source: "Digital Audit", date: "Jan 2026", sentiment: "negative", relevance: 74 }
+        ]
+      },
+      "North America": {
+        summary: "North America at 68 is the most volatile region. Amazon grey-market pressure threatens exclusivity. Sephora placements are strong, and editor endorsements from Allure offset some value concerns.",
+        signals: [
+          { title: "Sephora US merchandising upgrade for Sisley shelf space", source: "Sephora", date: "Mar 2026", sentiment: "positive", relevance: 86 },
+          { title: "Amazon grey-market listings increase 30%", source: "Amazon Monitor", date: "Feb 2026", sentiment: "negative", relevance: 90 },
+          { title: "Allure Best of Beauty nomination for Black Rose", source: "Allure", date: "Jan 2026", sentiment: "positive", relevance: 84 },
+          { title: "Gen Z price sensitivity increasing in premium beauty", source: "Consumer Panel", date: "Mar 2026", sentiment: "negative", relevance: 76 }
+        ]
+      },
+      "Latin America": {
+        summary: "Latin America at 62 represents the largest opportunity gap. Limited distribution outside Brazil, high price sensitivity, and emerging competitor presence create challenges. The 18% YoY luxury growth provides tailwind.",
+        signals: [
+          { title: "Brazilian luxury beauty market grows 18% YoY", source: "Market Research", date: "Feb 2026", sentiment: "positive", relevance: 82 },
+          { title: "Limited distribution restricts trial opportunity", source: "Distribution Audit", date: "Jan 2026", sentiment: "negative", relevance: 78 },
+          { title: "Local competitors gaining in premium skincare segment", source: "Competitive Intel", date: "Mar 2026", sentiment: "negative", relevance: 74 }
+        ]
+      }
+    };
+
+    const MARKETING_CLAIMS = [
+      { id: "phyto-cosmetology", claim: "Powered by phyto-cosmetology for proven anti-aging results", score: 78, penetrated: true, trend: 4, pillar: "efficacy",
+        geo: { "Europe": 82, "Asia-Pacific": 76, "North America": 71, "Middle East": 74, "Latin America": 58 },
+        demo: { "Luxury Loyalists": 85, "Skincare Enthusiasts": 80, "Beauty Editors": 82, "Dermatologists": 88, "Gen Z": 52 } },
+      { id: "french-heritage", claim: "A French luxury maison with over 45 years of botanical expertise", score: 84, penetrated: true, trend: 2, pillar: "prestige",
+        geo: { "Europe": 90, "Asia-Pacific": 82, "North America": 78, "Middle East": 86, "Latin America": 70 },
+        demo: { "Luxury Loyalists": 92, "Skincare Enthusiasts": 78, "Beauty Editors": 88, "Dermatologists": 74, "Gen Z": 60 } },
+      { id: "clinical-results", claim: "Clinically proven results visible within weeks", score: 72, penetrated: true, trend: 5, pillar: "efficacy",
+        geo: { "Europe": 76, "Asia-Pacific": 74, "North America": 70, "Middle East": 68, "Latin America": 56 },
+        demo: { "Luxury Loyalists": 78, "Skincare Enthusiasts": 82, "Beauty Editors": 74, "Dermatologists": 86, "Gen Z": 48 } },
+      { id: "sensorial-experience", claim: "An unparalleled sensorial experience in every application", score: 80, penetrated: true, trend: 1, pillar: "prestige",
+        geo: { "Europe": 86, "Asia-Pacific": 78, "North America": 76, "Middle East": 82, "Latin America": 66 },
+        demo: { "Luxury Loyalists": 90, "Skincare Enthusiasts": 76, "Beauty Editors": 86, "Dermatologists": 68, "Gen Z": 58 } },
+      { id: "dermatologist-endorsed", claim: "Trusted and recommended by leading dermatologists worldwide", score: 66, penetrated: true, trend: 3, pillar: "efficacy",
+        geo: { "Europe": 72, "Asia-Pacific": 68, "North America": 64, "Middle East": 62, "Latin America": 52 },
+        demo: { "Luxury Loyalists": 70, "Skincare Enthusiasts": 72, "Beauty Editors": 68, "Dermatologists": 90, "Gen Z": 44 } },
+      { id: "clean-botanical", claim: "Clean, naturally derived botanical formulas backed by science", score: 48, penetrated: false, trend: -6, pillar: "ingredients",
+        geo: { "Europe": 54, "Asia-Pacific": 50, "North America": 46, "Middle East": 42, "Latin America": 36 },
+        demo: { "Luxury Loyalists": 52, "Skincare Enthusiasts": 56, "Beauty Editors": 48, "Dermatologists": 60, "Gen Z": 34 } },
+      { id: "sustainable-luxury", claim: "Committed to sustainable luxury and ethical sourcing", score: 38, penetrated: false, trend: 3, pillar: "sustainability",
+        geo: { "Europe": 44, "Asia-Pacific": 40, "North America": 36, "Middle East": 34, "Latin America": 28 },
+        demo: { "Luxury Loyalists": 40, "Skincare Enthusiasts": 42, "Beauty Editors": 38, "Dermatologists": 34, "Gen Z": 46 } },
+      { id: "worth-investment", claim: "Premium investment in long-term skin health", score: 56, penetrated: false, trend: -3, pillar: "value",
+        geo: { "Europe": 62, "Asia-Pacific": 58, "North America": 52, "Middle East": 56, "Latin America": 40 },
+        demo: { "Luxury Loyalists": 68, "Skincare Enthusiasts": 58, "Beauty Editors": 54, "Dermatologists": 50, "Gen Z": 32 } }
+    ];
+
+    const PRODUCT_CLAIMS = {
+      "Black Rose": [
+        { claim: "The ultimate luxury facial oil for visible radiance", score: 86, penetrated: true, trend: 3, pillar: "efficacy", geo: { "Europe": 90, "Asia-Pacific": 84, "North America": 86, "Middle East": 82, "Latin America": 72 }, demo: { "Luxury Loyalists": 92, "Skincare Enthusiasts": 88, "Beauty Editors": 90, "Dermatologists": 80, "Gen Z": 58 } },
+        { claim: "Rare botanical extracts for overnight skin transformation", score: 74, penetrated: true, trend: 2, pillar: "ingredients", geo: { "Europe": 78, "Asia-Pacific": 76, "North America": 72, "Middle East": 70, "Latin America": 62 }, demo: { "Luxury Loyalists": 80, "Skincare Enthusiasts": 82, "Beauty Editors": 76, "Dermatologists": 74, "Gen Z": 52 } },
+        { claim: "Sustainably sourced rare botanicals from ethical suppliers", score: 42, penetrated: false, trend: -1, pillar: "sustainability", geo: { "Europe": 48, "Asia-Pacific": 44, "North America": 40, "Middle East": 38, "Latin America": 32 }, demo: { "Luxury Loyalists": 44, "Skincare Enthusiasts": 48, "Beauty Editors": 42, "Dermatologists": 38, "Gen Z": 50 } }
+      ],
+      "Sisleÿa L'Intégral": [
+        { claim: "The most comprehensive anti-aging skincare technology", score: 80, penetrated: true, trend: 4, pillar: "efficacy", geo: { "Europe": 84, "Asia-Pacific": 82, "North America": 76, "Middle East": 78, "Latin America": 64 }, demo: { "Luxury Loyalists": 86, "Skincare Enthusiasts": 84, "Beauty Editors": 80, "Dermatologists": 88, "Gen Z": 50 } },
+        { claim: "Powered by exclusive phyto-complex for cellular renewal", score: 72, penetrated: true, trend: 3, pillar: "ingredients", geo: { "Europe": 76, "Asia-Pacific": 74, "North America": 68, "Middle East": 72, "Latin America": 58 }, demo: { "Luxury Loyalists": 78, "Skincare Enthusiasts": 80, "Beauty Editors": 72, "Dermatologists": 82, "Gen Z": 46 } },
+        { claim: "Clinically validated in peer-reviewed dermatology journals", score: 76, penetrated: true, trend: 5, pillar: "efficacy", geo: { "Europe": 80, "Asia-Pacific": 78, "North America": 74, "Middle East": 70, "Latin America": 60 }, demo: { "Luxury Loyalists": 74, "Skincare Enthusiasts": 78, "Beauty Editors": 76, "Dermatologists": 92, "Gen Z": 44 } }
+      ],
+      "Hydra-Global": [
+        { claim: "24-hour hydration powered by botanical hyaluronic complex", score: 68, penetrated: true, trend: 2, pillar: "efficacy", geo: { "Europe": 72, "Asia-Pacific": 70, "North America": 66, "Middle East": 64, "Latin America": 56 }, demo: { "Luxury Loyalists": 70, "Skincare Enthusiasts": 74, "Beauty Editors": 68, "Dermatologists": 72, "Gen Z": 60 } },
+        { claim: "Reformulated for the perfect sensorial texture", score: 64, penetrated: true, trend: 6, pillar: "prestige", geo: { "Europe": 68, "Asia-Pacific": 66, "North America": 62, "Middle East": 60, "Latin America": 52 }, demo: { "Luxury Loyalists": 66, "Skincare Enthusiasts": 70, "Beauty Editors": 64, "Dermatologists": 60, "Gen Z": 56 } },
+        { claim: "Premium hydration at exceptional value per application", score: 58, penetrated: false, trend: -2, pillar: "value", geo: { "Europe": 64, "Asia-Pacific": 60, "North America": 54, "Middle East": 56, "Latin America": 44 }, demo: { "Luxury Loyalists": 62, "Skincare Enthusiasts": 58, "Beauty Editors": 56, "Dermatologists": 52, "Gen Z": 48 } }
+      ],
+      "Sunleÿa G.E.": [
+        { claim: "Advanced sun protection with proven anti-aging benefits", score: 62, penetrated: true, trend: -1, pillar: "efficacy", geo: { "Europe": 68, "Asia-Pacific": 60, "North America": 64, "Middle East": 58, "Latin America": 50 }, demo: { "Luxury Loyalists": 66, "Skincare Enthusiasts": 64, "Beauty Editors": 62, "Dermatologists": 70, "Gen Z": 42 } },
+        { claim: "SPF protection validated by independent laboratory testing", score: 54, penetrated: false, trend: -4, pillar: "efficacy", geo: { "Europe": 60, "Asia-Pacific": 48, "North America": 56, "Middle East": 52, "Latin America": 44 }, demo: { "Luxury Loyalists": 58, "Skincare Enthusiasts": 56, "Beauty Editors": 54, "Dermatologists": 66, "Gen Z": 36 } },
+        { claim: "Eco-conscious sun care for the discerning consumer", score: 36, penetrated: false, trend: 1, pillar: "sustainability", geo: { "Europe": 42, "Asia-Pacific": 38, "North America": 34, "Middle East": 30, "Latin America": 26 }, demo: { "Luxury Loyalists": 38, "Skincare Enthusiasts": 40, "Beauty Editors": 36, "Dermatologists": 32, "Gen Z": 44 } }
+      ],
+      "Phyto-Blanc Le Concentré": [
+        { claim: "The #1 luxury brightening serum recommended by experts", score: 82, penetrated: true, trend: 5, pillar: "efficacy", geo: { "Europe": 78, "Asia-Pacific": 90, "North America": 76, "Middle East": 74, "Latin America": 62 }, demo: { "Luxury Loyalists": 84, "Skincare Enthusiasts": 88, "Beauty Editors": 82, "Dermatologists": 86, "Gen Z": 64 } },
+        { claim: "Botanical brightening complex for even, luminous skin tone", score: 76, penetrated: true, trend: 4, pillar: "ingredients", geo: { "Europe": 74, "Asia-Pacific": 84, "North America": 72, "Middle East": 70, "Latin America": 58 }, demo: { "Luxury Loyalists": 78, "Skincare Enthusiasts": 82, "Beauty Editors": 76, "Dermatologists": 80, "Gen Z": 56 } },
+        { claim: "Visible results in 4 weeks, clinically measured", score: 70, penetrated: true, trend: 3, pillar: "efficacy", geo: { "Europe": 74, "Asia-Pacific": 76, "North America": 68, "Middle East": 64, "Latin America": 54 }, demo: { "Luxury Loyalists": 72, "Skincare Enthusiasts": 76, "Beauty Editors": 70, "Dermatologists": 82, "Gen Z": 50 } }
+      ],
+      "Eau du Soir": [
+        { claim: "An iconic fragrance embodying Parisian elegance since 1990", score: 88, penetrated: true, trend: 1, pillar: "prestige", geo: { "Europe": 92, "Asia-Pacific": 84, "North America": 86, "Middle East": 90, "Latin America": 76 }, demo: { "Luxury Loyalists": 94, "Skincare Enthusiasts": 80, "Beauty Editors": 92, "Dermatologists": 72, "Gen Z": 54 } },
+        { claim: "Crafted with the finest natural essences and botanicals", score: 62, penetrated: true, trend: -2, pillar: "ingredients", geo: { "Europe": 68, "Asia-Pacific": 64, "North America": 58, "Middle East": 62, "Latin America": 50 }, demo: { "Luxury Loyalists": 66, "Skincare Enthusiasts": 64, "Beauty Editors": 62, "Dermatologists": 58, "Gen Z": 40 } },
+        { claim: "Transparent fragrance composition with ethically sourced notes", score: 34, penetrated: false, trend: -5, pillar: "ingredients", geo: { "Europe": 40, "Asia-Pacific": 36, "North America": 32, "Middle East": 30, "Latin America": 24 }, demo: { "Luxury Loyalists": 36, "Skincare Enthusiasts": 38, "Beauty Editors": 34, "Dermatologists": 42, "Gen Z": 28 } }
+      ]
+    };
+
+    // ============================================================
+    // CHATBOT PERCEPTION DATA
+    // ============================================================
+
+    const CHATBOTS = [
+      { id: "chatgpt", name: "ChatGPT", color: "#10a37f", model: "GPT-4o" },
+      { id: "claude", name: "Claude", color: "#d4a27f", model: "Claude 3.5 Sonnet" },
+      { id: "gemini", name: "Gemini", color: "#4285f4", model: "Gemini 1.5 Pro" },
+      { id: "grok", name: "Grok", color: "#a0a0a0", model: "Grok-2" }
+    ];
+
+    const CHATBOT_BRAND_PERCEPTION = {
+      chatgpt: {
+        overallScore: 74, mentionRate: 68, recommendationRank: 3, sentiment: "positive",
+        strengths: ["Heritage & luxury positioning", "Anti-aging efficacy claims", "Botanical expertise narrative"],
+        concerns: ["Price justification vs. competitors", "Sustainability rarely mentioned", "Limited Gen Z relevance"],
+        sampleQuery: "What are the best luxury anti-aging skincare brands?",
+        sampleSnippet: "Sisley Paris is a premium French skincare house renowned for its phyto-cosmetology approach — combining botanical extracts with advanced skincare science. Their flagship Sisleÿa L'Intégral Anti-Âge is widely considered a top-tier anti-aging treatment, though it comes at a significant price point compared to alternatives like Augustinus Bader or La Mer.",
+        pillarScores: { efficacy: 78, prestige: 82, ingredients: 68, sustainability: 42, value: 52 },
+        topRecommended: ["Sisleÿa L'Intégral", "Black Rose", "Hydra-Global"]
+      },
+      claude: {
+        overallScore: 71, mentionRate: 62, recommendationRank: 4, sentiment: "positive",
+        strengths: ["Scientific rigor of phyto-cosmetology", "Product heritage story", "Clinical validation evidence"],
+        concerns: ["Ingredient transparency gaps noted", "Positions as niche vs. mainstream luxury", "Value proposition underexplored"],
+        sampleQuery: "I want to invest in luxury skincare. How does Sisley compare to La Mer?",
+        sampleSnippet: "Sisley takes a distinctive approach rooted in phyto-cosmetology — the science of using plant-based active ingredients. While La Mer emphasizes its proprietary Miracle Broth, Sisley's formulations are often praised by dermatologists for their botanical complexity. The brand is family-owned by the d'Ornano family, giving it an artisanal quality that larger conglomerates can't replicate.",
+        pillarScores: { efficacy: 76, prestige: 78, ingredients: 72, sustainability: 48, value: 50 },
+        topRecommended: ["Black Rose", "Sisleÿa L'Intégral", "Phyto-Blanc Le Concentré"]
+      },
+      gemini: {
+        overallScore: 68, mentionRate: 58, recommendationRank: 5, sentiment: "mixed",
+        strengths: ["Recognized as established luxury brand", "Product range breadth", "French heritage"],
+        concerns: ["Often listed after more popular competitors", "Clean beauty positioning unclear", "Limited digital-native appeal"],
+        sampleQuery: "Best luxury skincare brands for anti-aging in 2026?",
+        sampleSnippet: "For luxury anti-aging, top recommendations include La Mer, Chanel, Augustinus Bader, La Prairie, and Sisley Paris. Sisley is particularly known for its plant-based approach and the Sisleÿa line. However, some consumers note the steep price point relative to newer science-backed brands.",
+        pillarScores: { efficacy: 72, prestige: 74, ingredients: 60, sustainability: 38, value: 48 },
+        topRecommended: ["Sisleÿa L'Intégral", "Black Rose"]
+      },
+      grok: {
+        overallScore: 66, mentionRate: 54, recommendationRank: 4, sentiment: "mixed",
+        strengths: ["Luxury credibility acknowledged", "Unique botanical positioning", "Loyal following noted"],
+        concerns: ["Perceived as 'old money' brand", "Weak sustainability narrative", "Less mention in trending beauty discourse"],
+        sampleQuery: "What's the most effective luxury skincare money can buy?",
+        sampleSnippet: "Sisley Paris flies under the radar compared to La Mer or Augustinus Bader, but it has a devoted following among skincare enthusiasts who swear by the phyto-cosmetology approach. The Black Rose line is genuinely impressive. That said, you're paying a serious premium — and the brand hasn't kept up with sustainability trends the way newer players have.",
+        pillarScores: { efficacy: 70, prestige: 76, ingredients: 62, sustainability: 34, value: 46 },
+        topRecommended: ["Black Rose", "Sisleÿa L'Intégral", "Eau du Soir"]
+      }
+    };
+
+    const CHATBOT_PILLAR_PERCEPTION = {
+      efficacy: {
+        chatgpt: { score: 78, alignment: "strong", phrases: ["clinically proven", "dermatologist-recommended", "visible results", "phyto-cosmetology"] },
+        claude: { score: 76, alignment: "strong", phrases: ["scientific approach", "botanical actives", "evidence-based", "clinical validation"] },
+        gemini: { score: 72, alignment: "moderate", phrases: ["anti-aging properties", "plant-based ingredients", "luxury skincare science"] },
+        grok: { score: 70, alignment: "moderate", phrases: ["actually works", "real results", "phyto approach", "devoted following"] }
+      },
+      prestige: {
+        chatgpt: { score: 82, alignment: "strong", phrases: ["French luxury house", "premium positioning", "d'Ornano family", "heritage brand"] },
+        claude: { score: 78, alignment: "strong", phrases: ["artisanal quality", "family-owned maison", "luxury heritage", "distinctive approach"] },
+        gemini: { score: 74, alignment: "moderate", phrases: ["established luxury", "premium French brand", "high-end skincare"] },
+        grok: { score: 76, alignment: "moderate", phrases: ["old money brand", "luxury credibility", "under the radar prestige"] }
+      },
+      ingredients: {
+        chatgpt: { score: 68, alignment: "moderate", phrases: ["botanical extracts", "plant-based", "phyto-cosmetology"] },
+        claude: { score: 72, alignment: "moderate", phrases: ["botanical complexity", "plant-based actives", "phyto-cosmetology science"] },
+        gemini: { score: 60, alignment: "weak", phrases: ["plant-based approach", "natural ingredients"] },
+        grok: { score: 62, alignment: "weak", phrases: ["botanical approach", "natural formulations"] }
+      },
+      sustainability: {
+        chatgpt: { score: 42, alignment: "weak", phrases: [] },
+        claude: { score: 48, alignment: "weak", phrases: ["family-owned sustainability", "evolving practices"] },
+        gemini: { score: 38, alignment: "absent", phrases: [] },
+        grok: { score: 34, alignment: "absent", phrases: ["hasn't kept up with sustainability trends"] }
+      },
+      value: {
+        chatgpt: { score: 52, alignment: "weak", phrases: ["significant price point", "premium pricing", "investment piece"] },
+        claude: { score: 50, alignment: "weak", phrases: ["premium investment", "higher price tier"] },
+        gemini: { score: 48, alignment: "weak", phrases: ["steep price point", "premium cost"] },
+        grok: { score: 46, alignment: "weak", phrases: ["serious premium", "you're paying a lot"] }
+      }
+    };
+
+    const CHATBOT_PRODUCT_PERCEPTION = {
+      "Black Rose": {
+        chatgpt: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Black Rose Precious Face Oil is one of Sisley's standout products — a luxurious facial oil that delivers visible radiance overnight.", competitors: ["La Mer Renewal Oil"] },
+        claude: { rank: 1, mentioned: true, sentiment: "positive", snippet: "The Black Rose line is arguably Sisley's crown jewel. The Cream Mask and Precious Face Oil have achieved cult status among skincare connoisseurs.", competitors: [] },
+        gemini: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Black Rose is frequently recommended for luxury facial oils, competing with offerings from La Mer and Chanel.", competitors: ["La Mer Renewal Oil", "Chanel Sublimage"] },
+        grok: { rank: 1, mentioned: true, sentiment: "positive", snippet: "The Black Rose line is genuinely impressive — it's the kind of product that converts skeptics into Sisley loyalists.", competitors: [] }
+      },
+      "Sisleÿa L'Intégral": {
+        chatgpt: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Sisleÿa L'Intégral Anti-Âge is widely considered a top-tier comprehensive anti-aging treatment with clinical backing.", competitors: ["La Mer Crème", "Augustinus Bader The Cream"] },
+        claude: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Sisleÿa represents Sisley's most advanced anti-aging technology, with published clinical data supporting its efficacy claims.", competitors: ["Augustinus Bader The Rich Cream"] },
+        gemini: { rank: 4, mentioned: true, sentiment: "mixed", snippet: "Sisleÿa is a well-regarded anti-aging line, though it faces stiff competition from trendier alternatives.", competitors: ["La Mer", "Augustinus Bader", "La Prairie"] },
+        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Sisleÿa is the serious anti-aging play. Clinical results back it up, but the price tag is eye-watering.", competitors: ["Augustinus Bader", "La Mer"] }
+      },
+      "Hydra-Global": {
+        chatgpt: { rank: 5, mentioned: false, sentiment: "neutral", snippet: "Sisley's hydration line offers botanical-based moisturizing but faces strong competition in this crowded category.", competitors: ["La Mer Moisturizing", "Tatcha", "Drunk Elephant"] },
+        claude: { rank: 4, mentioned: true, sentiment: "positive", snippet: "Hydra-Global has improved significantly after its reformulation, offering a sophisticated texture and 24-hour hydration.", competitors: ["La Mer", "Augustinus Bader"] },
+        gemini: { rank: 6, mentioned: false, sentiment: "neutral", snippet: "Less frequently mentioned in the luxury moisturizer category compared to flagship competitors.", competitors: ["La Mer", "Tatcha", "La Prairie", "SK-II", "Chanel"] },
+        grok: { rank: 5, mentioned: false, sentiment: "neutral", snippet: "Hydra-Global doesn't get the attention it deserves — the reformulation fixed its texture issues.", competitors: ["Augustinus Bader", "La Mer", "Drunk Elephant", "Tatcha"] }
+      },
+      "Sunleÿa G.E.": {
+        chatgpt: { rank: 4, mentioned: false, sentiment: "neutral", snippet: "Sisley's sun care is premium-positioned but rarely appears in top SPF recommendation lists.", competitors: ["La Roche-Posay", "Supergoop", "Dr. Dennis Gross"] },
+        claude: { rank: 5, mentioned: false, sentiment: "cautious", snippet: "Sunleÿa G.E. offers anti-aging sun protection, though the luxury sun care space has seen newer entrants gaining attention.", competitors: ["Supergoop", "Dr. Dennis Gross", "La Roche-Posay", "Chanel UV Essentiel"] },
+        gemini: { rank: 7, mentioned: false, sentiment: "neutral", snippet: "Not typically recommended in standard sun protection queries. The luxury SPF niche is limited.", competitors: ["Supergoop", "La Roche-Posay", "EltaMD", "Chanel"] },
+        grok: { rank: 6, mentioned: false, sentiment: "cautious", snippet: "In the SPF game, dermatologist brands dominate. Sisley's Sunleÿa is for the person who wants anti-aging with their sun protection.", competitors: ["Supergoop", "La Roche-Posay", "EltaMD"] }
+      },
+      "Phyto-Blanc Le Concentré": {
+        chatgpt: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc Le Concentré is recognized as a leading luxury brightening serum, especially popular in Asian markets.", competitors: ["SK-II GenOptics", "Clé de Peau Sérum Éclat"] },
+        claude: { rank: 2, mentioned: true, sentiment: "positive", snippet: "One of the most respected brightening serums in luxury skincare, with strong clinical evidence for visible tone evening.", competitors: ["SK-II GenOptics"] },
+        gemini: { rank: 4, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc is well-regarded in the brightening category, particularly recommended for Asian skin types.", competitors: ["SK-II", "Clé de Peau", "Shiseido White Lucent"] },
+        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc is Sisley's APAC powerhouse — #1 on Xiaohongshu for brightening and legitimately effective.", competitors: ["SK-II GenOptics", "Clé de Peau"] }
+      },
+      "Eau du Soir": {
+        chatgpt: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Eau du Soir is a sophisticated evening fragrance that embodies classic Parisian elegance — a timeless choice.", competitors: ["Chanel No. 5", "Dior J'adore"] },
+        claude: { rank: 2, mentioned: true, sentiment: "positive", snippet: "An iconic fragrance that represents the quieter side of French luxury — less marketed but deeply appreciated by fragrance enthusiasts.", competitors: ["Chanel No. 5"] },
+        gemini: { rank: 4, mentioned: false, sentiment: "neutral", snippet: "A classic fragrance from Sisley, though less visible in mainstream fragrance recommendations.", competitors: ["Chanel No. 5", "Dior J'adore", "YSL Libre"] },
+        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Eau du Soir is the connoisseur's choice — the kind of fragrance people compliment but can never identify.", competitors: ["Chanel No. 5", "Dior J'adore"] }
+      }
+    };
+
+    // ============================================================
+    // SOCIAL PERCEPTION DATA
+    // ============================================================
+
+    const SOCIAL_NETWORKS = [
+      { id: 'instagram', name: 'Instagram', color: '#E1306C' },
+      { id: 'tiktok', name: 'TikTok', color: '#00f2ea' },
+      { id: 'x', name: 'X (Twitter)', color: '#a3a3a3' },
+      { id: 'reddit', name: 'Reddit', color: '#FF4500' }
+    ];
+
+    const SOCIAL_PERCEPTION = {
+      instagram: { score: 78, trend: 4, sentiment: { positive: 64, neutral: 22, negative: 14 }, volume: '18.4K', engagement: '3.2%', topContent: 'Black Rose unboxing reels driving 68% of positive mentions' },
+      tiktok: { score: 62, trend: -3, sentiment: { positive: 41, neutral: 28, negative: 31 }, volume: '32.1K', engagement: '5.8%', topContent: 'SPF scepticism videos dominating — 1.2M views on top critique' },
+      x: { score: 71, trend: 1, sentiment: { positive: 52, neutral: 30, negative: 18 }, volume: '8.7K', engagement: '1.4%', topContent: 'Heritage editorial shares and luxury positioning discussion' },
+      reddit: { score: 58, trend: -6, sentiment: { positive: 34, neutral: 26, negative: 40 }, volume: '4.2K', engagement: '8.1%', topContent: 'r/SkincareAddiction thread on ingredient transparency gaining traction' }
+    };
+
+    const PRODUCT_SOCIAL = {
+      'Sisleÿa L\'Intégral': {
+        instagram: { score: 82, volume: '5.1K', sentiment: 68 },
+        tiktok: { score: 65, volume: '8.4K', sentiment: 44 },
+        x: { score: 74, volume: '2.1K', sentiment: 56 },
+        reddit: { score: 60, volume: '1.4K', sentiment: 38 }
+      },
+      'Black Rose': {
+        instagram: { score: 88, volume: '6.8K', sentiment: 78 },
+        tiktok: { score: 75, volume: '11.2K', sentiment: 62 },
+        x: { score: 76, volume: '1.8K', sentiment: 60 },
+        reddit: { score: 72, volume: '0.9K', sentiment: 55 }
+      },
+      'Hydra-Global': {
+        instagram: { score: 64, volume: '2.1K', sentiment: 42 },
+        tiktok: { score: 55, volume: '4.6K', sentiment: 35 },
+        x: { score: 62, volume: '0.6K', sentiment: 48 },
+        reddit: { score: 48, volume: '1.8K', sentiment: 28 }
+      },
+      'Sunleÿa G.E.': {
+        instagram: { score: 60, volume: '1.9K', sentiment: 38 },
+        tiktok: { score: 42, volume: '6.2K', sentiment: 22 },
+        x: { score: 58, volume: '0.8K', sentiment: 44 },
+        reddit: { score: 45, volume: '1.1K', sentiment: 25 }
+      },
+      'Phyto-Blanc Le Concentré': {
+        instagram: { score: 80, volume: '4.2K', sentiment: 72 },
+        tiktok: { score: 70, volume: '9.8K', sentiment: 56 },
+        x: { score: 68, volume: '1.2K', sentiment: 52 },
+        reddit: { score: 56, volume: '0.7K', sentiment: 40 }
+      },
+      'Eau du Soir': {
+        instagram: { score: 74, volume: '3.6K', sentiment: 62 },
+        tiktok: { score: 48, volume: '2.8K', sentiment: 30 },
+        x: { score: 72, volume: '1.4K', sentiment: 58 },
+        reddit: { score: 52, volume: '0.5K', sentiment: 35 }
+      }
+    };
+
+    // ============================================================
+    // CAMPAIGN DATA
+    // ============================================================
+
+    const CAMPAIGNS = [
+      {
+        id: 'black-rose-spring', name: 'Black Rose Spring Launch', status: 'completed',
+        dateRange: 'Jan 15 – Mar 1, 2026', budget: '€420K',
+        channels: ['Instagram', 'Editorial', 'Retail'],
+        summary: 'Spring campaign centred on Black Rose Precious Face Oil — Allure award amplification, influencer seeding, and Net-a-Porter homepage takeover.',
+        pillarImpact: { efficacy: +5, prestige: +3, ingredients: +1, sustainability: 0, value: +2 },
+        channelPerformance: [
+          { channel: 'Instagram', impressions: '4.2M', engagement: '4.1%', sentiment: 72 },
+          { channel: 'Editorial', impressions: '2.8M', engagement: '—', sentiment: 88 },
+          { channel: 'Retail (Net-a-Porter)', impressions: '680K', engagement: '6.2%', sentiment: 80 }
+        ],
+        metrics: { totalImpressions: '7.7M', avgEngagement: '4.8%', earnedMediaValue: '€1.2M', sentimentShift: +8 },
+        keySignals: [
+          { title: 'Black Rose named "Best Luxury Facial Oil" by Allure — campaign-driven pitch', sentiment: 'positive' },
+          { title: 'Net-a-Porter homepage feature drives 2x search uplift for Sisley', sentiment: 'positive' },
+          { title: 'Instagram influencer seeding generates 340 organic posts in 6 weeks', sentiment: 'positive' }
+        ]
+      },
+      {
+        id: 'heritage-docu', name: 'Heritage Documentary Series', status: 'completed',
+        dateRange: 'Nov 1 – Dec 20, 2025', budget: '€280K',
+        channels: ['YouTube', 'Editorial', 'Social'],
+        summary: 'Three-part documentary series on the d\'Ornano family story distributed via Condé Nast properties and YouTube, amplified with social cuts.',
+        pillarImpact: { efficacy: 0, prestige: +6, ingredients: +1, sustainability: 0, value: +1 },
+        channelPerformance: [
+          { channel: 'YouTube', impressions: '1.8M', engagement: '7.2%', sentiment: 84 },
+          { channel: 'Editorial (Condé Nast)', impressions: '3.4M', engagement: '—', sentiment: 92 },
+          { channel: 'Social Cuts', impressions: '2.1M', engagement: '3.8%', sentiment: 76 }
+        ],
+        metrics: { totalImpressions: '7.3M', avgEngagement: '5.1%', earnedMediaValue: '€980K', sentimentShift: +6 },
+        keySignals: [
+          { title: 'FT profiles d\'Ornano family — "The last true family luxury house"', sentiment: 'positive' },
+          { title: 'Documentary series featured in Vogue "Best of Luxury Brand Storytelling"', sentiment: 'positive' },
+          { title: 'Heritage content drives 34% increase in branded search volume', sentiment: 'positive' }
+        ]
+      },
+      {
+        id: 'clean-transparency', name: 'Ingredient Transparency Push', status: 'in_progress',
+        dateRange: 'Mar 10 – May 15, 2026', budget: '€190K',
+        channels: ['Social', 'PR', 'Microsite'],
+        summary: 'Proactive transparency campaign — botanical garden content, sourcing disclosures, and Open Formula microsite soft launch. Responding to Clean Beauty Index decline.',
+        pillarImpact: { efficacy: +1, prestige: 0, ingredients: +6, sustainability: +2, value: 0 },
+        channelPerformance: [
+          { channel: 'Social (Instagram/TikTok)', impressions: '1.4M', engagement: '3.6%', sentiment: 62 },
+          { channel: 'PR Outreach', impressions: '890K', engagement: '—', sentiment: 70 },
+          { channel: 'Microsite', impressions: '42K', engagement: '12.4%', sentiment: 78 }
+        ],
+        metrics: { totalImpressions: '2.3M', avgEngagement: '5.3%', earnedMediaValue: '€340K', sentimentShift: +3 },
+        keySignals: [
+          { title: 'Botanical garden tour content generates 2.4M impressions on Instagram', sentiment: 'positive' },
+          { title: 'Reddit thread continues questioning sourcing — transparency push not yet cutting through', sentiment: 'negative' },
+          { title: 'Open Formula microsite soft launch — 42K visits in first 2 weeks', sentiment: 'positive' }
+        ]
+      },
+      {
+        id: 'spf-defence', name: 'SPF Trust Recovery', status: 'projected',
+        dateRange: 'May 2026 (projected)', budget: '€150K (est.)',
+        channels: ['TikTok', 'Dermatologist KOLs', 'PR'],
+        summary: 'Projected campaign to address TikTok SPF scepticism with third-party lab transparency, dermatologist video partnerships, and consumer FAQ content.',
+        pillarImpact: { efficacy: +5, prestige: +1, ingredients: +2, sustainability: 0, value: +1 },
+        channelPerformance: [
+          { channel: 'TikTok', impressions: '3.5M (est.)', engagement: '6.0%', sentiment: 65 },
+          { channel: 'Dermatologist KOLs', impressions: '1.2M (est.)', engagement: '4.5%', sentiment: 82 },
+          { channel: 'PR', impressions: '1.8M (est.)', engagement: '—', sentiment: 75 }
+        ],
+        metrics: { totalImpressions: '6.5M (est.)', avgEngagement: '5.2%', earnedMediaValue: '€890K (est.)', sentimentShift: +12 },
+        keySignals: [
+          { title: 'Third-party SPF lab results published — projected "industry first" coverage', sentiment: 'positive' },
+          { title: 'TikTok dermatologist creators validate Sunleÿa SPF claims', sentiment: 'positive' },
+          { title: 'Consumer trust index for Sunleÿa reverses from net -6 to net +18', sentiment: 'positive' }
+        ]
+      },
+      {
+        id: 'gen-z-sustain', name: 'Gen Z Sustainability Push', status: 'projected',
+        dateRange: 'Jun–Jul 2026 (projected)', budget: '€120K (est.)',
+        channels: ['TikTok', 'Instagram', 'Creator Partnerships'],
+        summary: 'Projected content programme showcasing Foundation reforestation, Leaping Bunny certification, and packaging roadmap to the Gen Z sustainability-aware cohort.',
+        pillarImpact: { efficacy: 0, prestige: +1, ingredients: +1, sustainability: +6, value: +1 },
+        channelPerformance: [
+          { channel: 'TikTok', impressions: '2.8M (est.)', engagement: '7.2%', sentiment: 70 },
+          { channel: 'Instagram', impressions: '1.6M (est.)', engagement: '4.0%', sentiment: 68 },
+          { channel: 'Creator Partnerships', impressions: '1.1M (est.)', engagement: '5.5%', sentiment: 74 }
+        ],
+        metrics: { totalImpressions: '5.5M (est.)', avgEngagement: '5.6%', earnedMediaValue: '€620K (est.)', sentimentShift: +10 },
+        keySignals: [
+          { title: 'Foundation reforestation content reaches 4.1M impressions — highest organic post', sentiment: 'positive' },
+          { title: 'Leaping Bunny certification video generates 800K TikTok views', sentiment: 'positive' },
+          { title: 'Gen Z purchase intent improves from 34% to 52% among sustainability-aware cohort', sentiment: 'positive' }
+        ]
+      }
+    ];
+
+    const STATUS_BADGE = {
+      completed:   { label: 'Completed', bg: 'bg-teal-950/50', text: 'text-teal-400', border: 'border-teal-900/60' },
+      in_progress: { label: 'In Progress', bg: 'bg-amber-950/50', text: 'text-amber-400', border: 'border-amber-900/60' },
+      projected:   { label: 'Projected', bg: 'bg-violet-950/50', text: 'text-violet-400', border: 'border-violet-900/60' }
+    };
+
+    // ============================================================
+    // UTILITIES
+    // ============================================================
+
+    function getScoreColor(score) {
+      if (score >= 80) return { bg: "bg-cyan-950/40", text: "text-cyan-400", border: "border-cyan-800/40", hex: "#22d3ee" };
+      if (score >= 60) return { bg: "bg-teal-950/40", text: "text-teal-400", border: "border-teal-800/40", hex: "#2dd4bf" };
+      if (score >= 40) return { bg: "bg-amber-950/40", text: "text-amber-400", border: "border-amber-800/40", hex: "#fbbf24" };
+      return { bg: "bg-red-950/40", text: "text-red-400", border: "border-red-800/40", hex: "#f87171" };
+    }
+
+    function getScoreLabel(score) {
+      if (score >= 80) return "Strong";
+      if (score >= 60) return "Gaining";
+      if (score >= 40) return "At Risk";
+      return "Weak";
+    }
+
+    function smoothPath(points) {
+      if (points.length < 2) return "";
+      let d = `M ${points[0].x} ${points[0].y}`;
+      for (let i = 1; i < points.length; i++) {
+        const t = 0.3;
+        const cp1x = points[i-1].x + (points[i].x - points[i-1].x) * t;
+        const cp2x = points[i].x - (points[i].x - points[i-1].x) * t;
+        d += ` C ${cp1x} ${points[i-1].y}, ${cp2x} ${points[i].y}, ${points[i].x} ${points[i].y}`;
+      }
+      return d;
+    }
+
+    // ============================================================
+    // ICON COMPONENT
+    // ============================================================
+
+    function Icon({ name, size = 16, color = "currentColor" }) {
+      const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+      const icons = {
+        flask: <svg {...props}><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/></svg>,
+        star: <svg {...props} fill={color} fillOpacity="0.15"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+        leaf: <svg {...props}><path d="M11 20A7 7 0 0 1 9.8 6.9C15.5 4.9 17 3.5 19 2c1 2-1.7 6.9-3.8 9.1a37.47 37.47 0 0 0-4 4.7A12.39 12.39 0 0 1 11 20Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>,
+        globe: <svg {...props}><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>,
+        dollar: <svg {...props}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+        "arrow-left": <svg {...props}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>,
+        "trending-up": <svg {...props}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
+        "trending-down": <svg {...props}><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>,
+        "chevron-right": <svg {...props}><path d="m9 18 6-6-6-6"/></svg>,
+        x: <svg {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+        sparkles: <svg {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>,
+        activity: <svg {...props}><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg>,
+        users: <svg {...props}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+        check: <svg {...props}><path d="M20 6 9 17l-5-5"/></svg>,
+        zap: <svg {...props}><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>,
+        "layout-dashboard": <svg {...props}><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="5" x="14" y="12" rx="1"/><rect width="7" height="9" x="3" y="16" rx="1"/></svg>,
+        radar: <svg {...props}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>,
+        layers: <svg {...props}><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.84Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>,
+        bell: <svg {...props}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>,
+        settings: <svg {...props}><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2m-9-11h2m18 0h2m-3.3-6.7-1.4 1.4M6.7 17.3l-1.4 1.4m0-13.4 1.4 1.4m10.6 10.6 1.4 1.4"/></svg>,
+        "external-link": <svg {...props}><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>,
+        bot: <svg {...props}><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>,
+        crosshair: <svg {...props}><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>,
+        minus: <svg {...props}><path d="M5 12h14"/></svg>,
+        "message-circle": <svg {...props}><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/></svg>,
+        eye: <svg {...props}><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>,
+        plus: <svg {...props}><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+        "alert-circle": <svg {...props}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
+      };
+      return icons[name] || null;
+    }
+
+    // ============================================================
+    // CHART COMPONENTS
+    // ============================================================
+
+    function ScoreRing({ score, size = 120, color }) {
+      const c = color || getScoreColor(score).hex;
+      const r = (size - 8) / 2;
+      const circ = 2 * Math.PI * r;
+      const offset = circ * (1 - score / 100);
+      return (
+        <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+          <svg width={size} height={size} className="transform -rotate-90">
+            <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#262626" strokeWidth="4" />
+            <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={c} strokeWidth="4"
+              strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+              style={{ transition: "stroke-dashoffset 1s ease-out" }} />
+          </svg>
+          <div className="absolute flex flex-col items-center">
+            <span className="font-serif font-bold text-white" style={{ fontSize: size * 0.3 }}>{score}</span>
+            <span className="text-neutral-500" style={{ fontSize: size * 0.09 }}>/ 100</span>
+          </div>
+        </div>
+      );
+    }
+
+    function TrendChart({ data, dataKey = "score", height = 180, color = "#2dd4bf", showArea = true }) {
+      const [hovered, setHovered] = useState(null);
+      const values = data.map(d => d[dataKey]);
+      const maxVal = Math.max(...values) + 3;
+      const minVal = Math.min(...values) - 3;
+      const range = maxVal - minVal || 1;
+      const pad = { top: 20, right: 20, bottom: 30, left: 40 };
+      const W = 600, H = height;
+      const pW = W - pad.left - pad.right, pH = H - pad.top - pad.bottom;
+
+      const pts = data.map((d, i) => ({
+        x: pad.left + (i / (data.length - 1)) * pW,
+        y: pad.top + (1 - (d[dataKey] - minVal) / range) * pH,
+        val: d[dataKey], label: d.month
+      }));
+      const pathD = smoothPath(pts);
+      const areaD = pathD + ` L ${pts[pts.length-1].x} ${pad.top + pH} L ${pts[0].x} ${pad.top + pH} Z`;
+      const gradId = `area-${color.replace('#','')}`;
+
+      return (
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height }} preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.2" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0,0.25,0.5,0.75,1].map((f,i) => (
+            <line key={i} x1={pad.left} y1={pad.top + f * pH} x2={W - pad.right} y2={pad.top + f * pH} stroke="#1a1a1a" strokeWidth="0.5" />
+          ))}
+          {showArea && <path d={areaD} fill={`url(#${gradId})`} />}
+          <path d={pathD} fill="none" stroke={color} strokeWidth="2.5" />
+          {pts.map((p, i) => (
+            <g key={i} onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} style={{ cursor: "pointer" }}>
+              <circle cx={p.x} cy={p.y} r={hovered === i ? 5 : 3} fill="#0a0a0a" stroke={color} strokeWidth="2" style={{ transition: "r 0.15s" }} />
+              {hovered === i && (
+                <g>
+                  <rect x={p.x - 28} y={p.y - 28} width="56" height="22" rx="4" fill="#171717" stroke="#333" strokeWidth="0.5" />
+                  <text x={p.x} y={p.y - 14} fill="white" fontSize="11" textAnchor="middle" fontFamily="Inter" fontWeight="600">{p.val}</text>
+                </g>
+              )}
+            </g>
+          ))}
+          {data.map((d, i) => (
+            i % 2 === 0 && <text key={i} x={pts[i].x} y={H - 6} fill="#525252" fontSize="9" textAnchor="middle" fontFamily="Inter">{d.month}</text>
+          ))}
+          {[0,0.5,1].map((f,i) => (
+            <text key={i} x={pad.left - 8} y={pad.top + f * pH + 4} fill="#525252" fontSize="9" textAnchor="end" fontFamily="Inter">{Math.round(maxVal - f * range)}</text>
+          ))}
+        </svg>
+      );
+    }
+
+    function BarList({ items, maxValue = 100, colorFn, height = 6 }) {
+      return (
+        <div className="space-y-3">
+          {items.map((item, i) => {
+            const c = colorFn ? colorFn(item) : getScoreColor(item.value || item.score).hex;
+            const val = item.value || item.score || item.pct || 0;
+            return (
+              <div key={i}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-neutral-400">{item.name}</span>
+                  <span className="text-neutral-300 font-medium">{val}{item.pct !== undefined ? "%" : ""}</span>
+                </div>
+                <div className="bg-neutral-800 rounded-full overflow-hidden" style={{ height }}>
+                  <div className="h-full rounded-full animate-bar" style={{ width: `${(val / maxValue) * 100}%`, background: c }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // SMALL UI COMPONENTS
+    // ============================================================
+
+    function TrendIndicator({ trend, size = "sm" }) {
+      if (trend === 0) return <span className="text-neutral-500 text-xs">—</span>;
+      const isUp = trend > 0;
+      const sz = size === "lg" ? 16 : 12;
+      return (
+        <span className={`inline-flex items-center gap-0.5 ${isUp ? 'text-emerald-400' : 'text-red-400'} ${size === "lg" ? 'text-sm' : 'text-xs'}`}>
+          <Icon name={isUp ? "trending-up" : "trending-down"} size={sz} />
+          <span className="font-medium">{isUp ? "+" : ""}{trend}</span>
+        </span>
+      );
+    }
+
+    function Card({ children, className = "", onClick, hover = false }) {
+      return (
+        <div onClick={onClick}
+          className={`bg-neutral-900/90 border border-neutral-800 rounded-xl p-5 ${hover ? 'cursor-pointer hover:border-neutral-700 hover:shadow-lg hover:shadow-neutral-900/50 transition-all duration-200' : ''} ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function SectionHeader({ title, icon, rightContent }) {
+      return (
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 border-l-2 border-amber-700/40 pl-3">
+            {icon && <span className="text-neutral-500"><Icon name={icon} size={14} /></span>}
+            <h3 className="text-xs font-semibold text-neutral-400 uppercase tracking-widest">{title}</h3>
+          </div>
+          {rightContent}
+        </div>
+      );
+    }
+
+    function PillarChip({ pillarId }) {
+      const p = PILLARS.find(x => x.id === pillarId);
+      if (!p) return null;
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs" style={{ background: p.color + "15", color: p.color, border: `1px solid ${p.color}33` }}>
+          <Icon name={p.icon} size={10} color={p.color} />{p.name}
+        </span>
+      );
+    }
+
+    function SignalCard({ signal }) {
+      const isPos = signal.sentiment === "positive";
+      return (
+        <div className="flex items-start gap-3 py-3 border-b border-neutral-800/50 last:border-0">
+          <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${isPos ? 'bg-emerald-400' : 'bg-red-400'}`} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-neutral-300 leading-relaxed">{signal.title}</p>
+            <div className="flex items-center gap-3 mt-1.5 text-xs text-neutral-500">
+              <span>{signal.source}</span>
+              <span>{signal.date}</span>
+              {signal.relevance && <span className="text-neutral-600">Relevance: {signal.relevance}</span>}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // CLAIM CARD
+    // ============================================================
+
+    function ClaimCard({ claim, compact = false, showBreakdown = false }) {
+      const [expanded, setExpanded] = useState(false);
+      const c = claim.penetrated ? "#10b981" : "#ef4444";
+      const pillar = PILLARS.find(p => p.id === claim.pillar);
+
+      return (
+        <div className="bg-neutral-900/60 border border-neutral-800/60 rounded-lg p-4 hover:border-neutral-700/60 transition-colors">
+          <p className="font-serif text-neutral-200 text-sm leading-relaxed mb-3">"{claim.claim}"</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex-1 bg-neutral-800 rounded-full h-2 overflow-hidden">
+              <div className="h-full rounded-full animate-bar" style={{ width: `${claim.score}%`, background: c }} />
+            </div>
+            <span className="text-sm font-semibold text-neutral-200 w-8 text-right">{claim.score}</span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${claim.penetrated ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/30' : 'bg-red-950/50 text-red-400 border border-red-800/30'}`}>
+              <Icon name={claim.penetrated ? "check" : "minus"} size={10} />
+              {claim.penetrated ? "Penetrating" : "Not Penetrating"}
+            </span>
+            <TrendIndicator trend={claim.trend} />
+            {pillar && <PillarChip pillarId={claim.pillar} />}
+          </div>
+          {(showBreakdown || expanded) && claim.geo && (
+            <div className="mt-4 pt-3 border-t border-neutral-800/50 grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-neutral-500 mb-2 uppercase tracking-wider">Geographic Penetration</p>
+                <BarList items={Object.entries(claim.geo).map(([k,v]) => ({ name: k, value: v }))} maxValue={100} height={4}
+                  colorFn={(item) => item.value >= 60 ? "#10b981" : "#ef4444"} />
+              </div>
+              <div>
+                <p className="text-xs text-neutral-500 mb-2 uppercase tracking-wider">Demographic Resonance</p>
+                <BarList items={Object.entries(claim.demo).map(([k,v]) => ({ name: k, value: v }))} maxValue={100} height={4}
+                  colorFn={(item) => item.value >= 60 ? "#10b981" : "#ef4444"} />
+              </div>
+            </div>
+          )}
+          {!compact && !showBreakdown && claim.geo && (
+            <button onClick={() => setExpanded(!expanded)} className="mt-2 text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
+              {expanded ? "Hide breakdown" : "Show breakdown"}
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // CHATBOT PERCEPTION SECTION
+    // ============================================================
+
+    function ChatbotPerceptionSection({ level = "global", pillarId, productName }) {
+      const [activeBot, setActiveBot] = useState("chatgpt");
+      const activeData = CHATBOT_BRAND_PERCEPTION[activeBot];
+
+      // Compute context-specific data
+      const getBotScore = (botId) => {
+        if (level === "pillar" && pillarId) {
+          return CHATBOT_PILLAR_PERCEPTION[pillarId]?.[botId]?.score || 0;
+        }
+        return CHATBOT_BRAND_PERCEPTION[botId]?.overallScore || 0;
+      };
+
+      const getBotRank = (botId) => {
+        if (level === "product" && productName) {
+          return CHATBOT_PRODUCT_PERCEPTION[productName]?.[botId]?.rank || "-";
+        }
+        return CHATBOT_BRAND_PERCEPTION[botId]?.recommendationRank || "-";
+      };
+
+      const getSentimentColor = (sentiment) => {
+        if (sentiment === "positive") return "bg-emerald-400";
+        if (sentiment === "mixed" || sentiment === "cautious") return "bg-amber-400";
+        return "bg-red-400";
+      };
+
+      const getSentimentLabel = (sentiment) => {
+        if (sentiment === "positive") return "Positive";
+        if (sentiment === "mixed") return "Mixed";
+        if (sentiment === "cautious") return "Cautious";
+        return "Neutral";
+      };
+
+      const getBotSentiment = (botId) => {
+        if (level === "product" && productName) {
+          return CHATBOT_PRODUCT_PERCEPTION[productName]?.[botId]?.sentiment || "neutral";
+        }
+        return CHATBOT_BRAND_PERCEPTION[botId]?.sentiment || "neutral";
+      };
+
+      const getSnippet = (botId) => {
+        if (level === "product" && productName) {
+          const pd = CHATBOT_PRODUCT_PERCEPTION[productName]?.[botId];
+          return { query: `Best ${PRODUCT_LINES.find(p=>p.name===productName)?.category?.toLowerCase() || 'luxury skincare'} products?`, snippet: pd?.snippet || "" };
+        }
+        if (level === "pillar" && pillarId) {
+          const pillar = PILLARS.find(p => p.id === pillarId);
+          const pp = CHATBOT_PILLAR_PERCEPTION[pillarId]?.[botId];
+          return { query: `How does Sisley perform on ${pillar?.name?.toLowerCase()}?`, snippet: `Alignment: ${pp?.alignment || "unknown"}. Key phrases used: ${(pp?.phrases || []).map(p => '"' + p + '"').join(", ") || "none detected"}.` };
+        }
+        const bd = CHATBOT_BRAND_PERCEPTION[botId];
+        return { query: bd?.sampleQuery || "", snippet: bd?.sampleSnippet || "" };
+      };
+
+      const getStrengths = (botId) => {
+        if (level === "product" && productName) {
+          const pd = CHATBOT_PRODUCT_PERCEPTION[productName]?.[botId];
+          return { strengths: pd?.mentioned ? ["Proactively mentioned", `Ranked #${pd.rank} in category`] : [], concerns: pd?.competitorsRankedAbove?.map(c => `${c} ranked higher`) || [] };
+        }
+        if (level === "pillar" && pillarId) {
+          const pp = CHATBOT_PILLAR_PERCEPTION[pillarId]?.[botId];
+          const alignment = pp?.alignment || "unknown";
+          const strengths = alignment === "strong" ? ["Strong narrative alignment", ...(pp?.phrases?.slice(0, 2) || []).map(p => `Uses "${p}"`)] : alignment === "moderate" ? ["Moderate alignment"] : [];
+          const concerns = alignment === "weak" ? ["Weak narrative reflection"] : alignment === "absent" ? ["Pillar not reflected in responses"] : [];
+          return { strengths, concerns };
+        }
+        const bd = CHATBOT_BRAND_PERCEPTION[botId];
+        return { strengths: bd?.strengths || [], concerns: bd?.concerns || [] };
+      };
+
+      const activeSC = getStrengths(activeBot);
+      const activeSnippet = getSnippet(activeBot);
+
+      return (
+        <div>
+          <SectionHeader title="Chatbot Perception Analysis" icon="bot"
+            rightContent={<span className="text-xs text-neutral-600 font-normal normal-case tracking-normal">How AI assistants perceive and recommend Sisley</span>} />
+
+          {/* Chatbot Score Cards */}
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            {CHATBOTS.map(bot => {
+              const score = getBotScore(bot.id);
+              const rank = getBotRank(bot.id);
+              const sentiment = getBotSentiment(bot.id);
+              const isActive = activeBot === bot.id;
+              return (
+                <Card key={bot.id} hover onClick={() => setActiveBot(bot.id)}
+                  className={`!p-4 transition-all ${isActive ? 'ring-1' : ''}`}
+                  style={isActive ? { borderColor: bot.color + "66", boxShadow: `0 0 20px ${bot.color}10` } : {}}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" style={{ background: bot.color + "18", color: bot.color, border: `1px solid ${bot.color}30` }}>
+                        {bot.name[0]}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-neutral-200">{bot.name}</p>
+                        <p className="text-xs text-neutral-600">{bot.model}</p>
+                      </div>
+                    </div>
+                    <div className={`w-2 h-2 rounded-full ${getSentimentColor(sentiment)}`} title={getSentimentLabel(sentiment)} />
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="font-serif text-2xl font-bold text-white">{score}</p>
+                      <p className="text-xs text-neutral-600">perception</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold" style={{ color: bot.color }}>#{rank}</p>
+                      <p className="text-xs text-neutral-600">{level === "product" ? "category" : "rec. rank"}</p>
+                    </div>
+                  </div>
+                  <div className="mt-2 bg-neutral-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full animate-bar" style={{ width: `${score}%`, background: bot.color }} />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Sample Response + Strengths/Concerns */}
+          <div className="grid grid-cols-3 gap-4">
+            {/* Sample Response */}
+            <Card className="col-span-2">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon name="message-circle" size={14} color={CHATBOTS.find(b=>b.id===activeBot)?.color} />
+                <p className="text-xs font-medium uppercase tracking-wider" style={{ color: CHATBOTS.find(b=>b.id===activeBot)?.color }}>
+                  {CHATBOTS.find(b=>b.id===activeBot)?.name} Response
+                </p>
+                <div className="flex gap-1 ml-auto">
+                  {CHATBOTS.map(b => (
+                    <button key={b.id} onClick={() => setActiveBot(b.id)}
+                      className={`w-6 h-6 rounded text-xs font-bold transition-all ${activeBot === b.id ? 'ring-1 ring-offset-1 ring-offset-neutral-900' : 'opacity-40 hover:opacity-70'}`}
+                      style={{ background: b.color + "20", color: b.color, ringColor: b.color }}>
+                      {b.name[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-neutral-950 rounded-xl p-4 border border-neutral-800/50">
+                <p className="font-serif text-sm text-neutral-400 mb-3">
+                  "{activeSnippet.query}"
+                </p>
+                <div className="pl-3 border-l-2 border-neutral-800">
+                  <p className="text-sm text-neutral-300 leading-relaxed">{activeSnippet.snippet}</p>
+                </div>
+                <div className="flex items-center gap-2 mt-3 pt-2 border-t border-neutral-800/50">
+                  <div className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold" style={{ background: CHATBOTS.find(b=>b.id===activeBot)?.color + "20", color: CHATBOTS.find(b=>b.id===activeBot)?.color }}>
+                    {CHATBOTS.find(b=>b.id===activeBot)?.name[0]}
+                  </div>
+                  <span className="text-xs text-neutral-500">{CHATBOTS.find(b=>b.id===activeBot)?.name} ({CHATBOTS.find(b=>b.id===activeBot)?.model})</span>
+                  {level === "global" && <span className="text-xs text-neutral-600 ml-auto">Mention rate: {CHATBOT_BRAND_PERCEPTION[activeBot]?.mentionRate}%</span>}
+                </div>
+              </div>
+
+              {/* Pillar-specific: show per-chatbot pillar bar chart */}
+              {level === "pillar" && pillarId && (
+                <div className="mt-4">
+                  <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Pillar Score by Chatbot</p>
+                  <BarList items={CHATBOTS.map(b => ({
+                    name: b.name,
+                    value: CHATBOT_PILLAR_PERCEPTION[pillarId]?.[b.id]?.score || 0,
+                    color: b.color
+                  }))} maxValue={100} colorFn={item => item.color} />
+                </div>
+              )}
+
+              {/* Product-specific: show competitor ranking */}
+              {level === "product" && productName && (
+                <div className="mt-4">
+                  <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Product Ranking Across Chatbots</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {CHATBOTS.map(b => {
+                      const pd = CHATBOT_PRODUCT_PERCEPTION[productName]?.[b.id];
+                      return (
+                        <div key={b.id} className="bg-neutral-800/40 rounded-lg p-2 text-center">
+                          <p className="text-xs font-medium" style={{ color: b.color }}>{b.name}</p>
+                          <p className="font-serif text-lg font-bold text-white mt-0.5">#{pd?.rank || "-"}</p>
+                          <div className={`w-2 h-2 rounded-full mx-auto mt-1 ${getSentimentColor(pd?.sentiment || "neutral")}`} />
+                          <p className="text-xs text-neutral-500 mt-0.5">{pd?.mentioned ? "Mentioned" : "Not mentioned"}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Strengths & Concerns */}
+            <Card>
+              <div className="mb-4">
+                <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Strengths Highlighted</p>
+                <div className="space-y-2">
+                  {activeSC.strengths.length > 0 ? activeSC.strengths.map((s, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="w-4 h-4 rounded-full bg-emerald-950/50 border border-emerald-800/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Icon name="check" size={8} color="#10b981" />
+                      </div>
+                      <p className="text-xs text-neutral-300">{s}</p>
+                    </div>
+                  )) : (
+                    <p className="text-xs text-neutral-600 italic">No strengths detected</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Gaps & Concerns</p>
+                <div className="space-y-2">
+                  {activeSC.concerns.length > 0 ? activeSC.concerns.map((c, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="w-4 h-4 rounded-full bg-red-950/50 border border-red-800/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Icon name="x" size={8} color="#ef4444" />
+                      </div>
+                      <p className="text-xs text-neutral-300">{c}</p>
+                    </div>
+                  )) : (
+                    <p className="text-xs text-neutral-600 italic">No concerns detected</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Global: Top recommended products */}
+              {level === "global" && (
+                <div className="mt-4 pt-3 border-t border-neutral-800/50">
+                  <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Top Recommended</p>
+                  <div className="space-y-1">
+                    {(CHATBOT_BRAND_PERCEPTION[activeBot]?.topRecommended || []).map((p, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <span className="text-neutral-600 font-medium w-4">{i + 1}.</span>
+                        <div className="w-1 h-3 rounded-full" style={{ background: PRODUCT_COLORS[p] || "#525252" }} />
+                        <span className="text-neutral-300">{p}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Pillar: Narrative alignment */}
+              {level === "pillar" && pillarId && (
+                <div className="mt-4 pt-3 border-t border-neutral-800/50">
+                  <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Narrative Alignment</p>
+                  <div className="space-y-2">
+                    {CHATBOTS.map(b => {
+                      const pp = CHATBOT_PILLAR_PERCEPTION[pillarId]?.[b.id];
+                      const aMap = { strong: { c: "text-emerald-400", l: "Strong" }, moderate: { c: "text-amber-400", l: "Moderate" }, weak: { c: "text-red-400", l: "Weak" }, absent: { c: "text-neutral-600", l: "Absent" } };
+                      const a = aMap[pp?.alignment] || aMap.absent;
+                      return (
+                        <div key={b.id} className="flex items-center justify-between text-xs">
+                          <span className="text-neutral-400">{b.name}</span>
+                          <span className={`font-medium ${a.c}`}>{a.l}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // SOCIAL PERCEPTION SECTION
+    // ============================================================
+
+    function SocialPerceptionSection({ level = "global", productName }) {
+      if (level === "product") {
+        const productData = PRODUCT_SOCIAL[productName];
+        if (!productData) return null;
+        return (
+          <div>
+            <SectionHeader title="Social Network Perception" icon="activity" />
+            <div className="grid grid-cols-4 gap-4">
+              {SOCIAL_NETWORKS.map(net => {
+                const data = productData[net.id];
+                if (!data) return null;
+                const sc = getScoreColor(data.score);
+                return (
+                  <Card key={net.id}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: net.color }} />
+                      <span className="text-xs font-semibold text-neutral-200">{net.name}</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 mb-3">
+                      <span className="text-2xl font-bold" style={{ color: sc.hex }}>{data.score}</span>
+                      <span className="text-[10px] font-semibold text-neutral-600">/100</span>
+                    </div>
+                    <div className="flex h-1.5 rounded-full overflow-hidden mb-3">
+                      <div className="bg-teal-500" style={{ width: data.sentiment + '%' }} />
+                      <div className="bg-neutral-600" style={{ width: (100 - data.sentiment) + '%' }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] mb-2">
+                      <span className="text-teal-400">{data.sentiment}% positive</span>
+                    </div>
+                    <div className="pt-2 border-t border-neutral-800">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-neutral-500">Volume</span>
+                        <span className="text-[10px] font-semibold text-neutral-300">{data.volume}</span>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
+      // Global level
+      return (
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Social Network Perception</p>
+              <p className="text-[11px] text-neutral-600 mt-0.5">Group-level sentiment across platforms · Mar 2026</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            {SOCIAL_NETWORKS.map(net => {
+              const data = SOCIAL_PERCEPTION[net.id];
+              const sc = getScoreColor(data.score);
+              return (
+                <div key={net.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: net.color }} />
+                      <span className="text-xs font-semibold text-neutral-200">{net.name}</span>
+                    </div>
+                    <TrendIndicator trend={data.trend} />
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mb-3">
+                    <span className="text-2xl font-bold" style={{ color: sc.hex }}>{data.score}</span>
+                    <span className="text-[10px] font-semibold text-neutral-600">/100</span>
+                  </div>
+                  <div className="flex h-1.5 rounded-full overflow-hidden mb-3">
+                    <div className="bg-teal-500" style={{ width: data.sentiment.positive + '%' }} />
+                    <div className="bg-neutral-600" style={{ width: data.sentiment.neutral + '%' }} />
+                    <div className="bg-red-500" style={{ width: data.sentiment.negative + '%' }} />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] mb-3">
+                    <span className="text-teal-400">{data.sentiment.positive}% pos</span>
+                    <span className="text-red-400">{data.sentiment.negative}% neg</span>
+                  </div>
+                  <div className="space-y-1.5 pt-2 border-t border-neutral-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-neutral-500">Volume</span>
+                      <span className="text-[10px] font-semibold text-neutral-300">{data.volume}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-neutral-500">Engagement</span>
+                      <span className="text-[10px] font-semibold text-neutral-300">{data.engagement}</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-neutral-500 mt-3 leading-snug">{data.topContent}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // SIDEBAR
+    // ============================================================
+
+    function Sidebar({ view, onNavigate, onOpenCampaigns }) {
+      const navItems = [
+        { label: "Dashboard", icon: "layout-dashboard", active: true },
+        { label: "Radar", icon: "radar", active: false },
+        { label: "Signals", icon: "activity", active: false },
+      ];
+      const otherModules = [
+        { label: "Audience Intelligence", icon: "users", active: false },
+        { label: "Competitive Radar", icon: "layers", active: false },
+      ];
+      const isNarrativeActive = view !== "campaigns";
+      const isCampaignActive = view === "campaigns";
+      return (
+        <div className="w-60 bg-neutral-950 border-r border-neutral-800/50 flex flex-col h-full flex-shrink-0">
+          <div className="p-5 border-b border-neutral-800/50">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center">
+                <Icon name="sparkles" size={14} color="white" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white tracking-wide">Omniscient</p>
+                <p className="text-xs text-neutral-500">Narrative Intelligence</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto py-4 px-3">
+            <p className="text-xs text-neutral-600 uppercase tracking-widest px-2 mb-2">Core</p>
+            {navItems.map((item, i) => (
+              <button key={i} onClick={item.active ? () => onNavigate("landing") : undefined}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm mb-0.5 transition-colors ${item.active ? 'bg-neutral-800/60 text-white' : 'text-neutral-500 hover:text-neutral-400'}`}>
+                <Icon name={item.icon} size={15} />{item.label}
+              </button>
+            ))}
+            <p className="text-xs text-neutral-600 uppercase tracking-widest px-2 mb-2 mt-5">Modules</p>
+            {/* Narrative Penetration — parent module */}
+            <button onClick={() => onNavigate("landing")}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm mb-0.5 transition-colors ${isNarrativeActive ? 'bg-teal-950/30 text-teal-400 border border-teal-900/30' : 'text-teal-400/60 hover:text-teal-400'}`}>
+              <Icon name="crosshair" size={15} />Narrative Penetration
+            </button>
+            {/* Campaign Efficacy — sub-module */}
+            <button onClick={onOpenCampaigns}
+              className={`w-full flex items-center gap-2 pl-8 pr-3 py-1.5 rounded-lg text-xs mb-0.5 transition-colors ${isCampaignActive ? 'bg-teal-950/40 text-teal-300 border border-teal-900/30' : 'text-neutral-500 hover:text-teal-400 hover:bg-neutral-800/30'}`}>
+              <Icon name="activity" size={13} />Campaign Efficacy
+            </button>
+            {otherModules.map((item, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm mb-0.5 text-neutral-600">
+                <Icon name={item.icon} size={15} />{item.label}
+              </div>
+            ))}
+            <p className="text-xs text-neutral-600 uppercase tracking-widest px-2 mb-2 mt-5">Utilities</p>
+            <div className="flex items-center gap-2.5 px-3 py-2 text-neutral-600 text-sm"><Icon name="settings" size={15} />Settings</div>
+            <div className="flex items-center gap-2.5 px-3 py-2 text-neutral-600 text-sm"><Icon name="bell" size={15} />Alerts</div>
+          </div>
+          <div className="p-4 border-t border-neutral-800/50">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-neutral-800 flex items-center justify-center text-xs text-neutral-400 font-medium">AI</div>
+              <div>
+                <p className="text-xs text-neutral-400">AI Analysis</p>
+                <p className="text-xs text-emerald-500">Active</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // HEADER BAR
+    // ============================================================
+
+    function HeaderBar({ view, pillarName, productName, onBack }) {
+      const crumbs = [{ label: "Dashboard", action: view !== "landing" ? () => onBack("landing") : null }];
+      if (view === "pillar" && pillarName) crumbs.push({ label: pillarName });
+      if (view === "product" && productName) crumbs.push({ label: productName });
+      if (view === "campaigns") crumbs.push({ label: "Campaign Efficacy" });
+
+      return (
+        <div className="h-14 border-b border-neutral-800/50 flex items-center justify-between px-6 flex-shrink-0 bg-neutral-950/80 backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-sm">
+            {crumbs.map((c, i) => (
+              <React.Fragment key={i}>
+                {i > 0 && <Icon name="chevron-right" size={12} color="#525252" />}
+                {c.action ? (
+                  <button onClick={c.action} className="text-neutral-500 hover:text-neutral-300 transition-colors">{c.label}</button>
+                ) : (
+                  <span className="text-neutral-200">{c.label}</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-xs text-neutral-500">{DATE_RANGE}</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800">
+              <span className="font-serif text-xs font-semibold tracking-widest" style={{ color: "#c4a265" }}>SISLEY PARIS</span>
+              <span className="text-xs text-neutral-600">|</span>
+              <span className="text-xs text-neutral-500">{BRAND.sector}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // GLOBE VISUALIZATION
+    // ============================================================
+
+    function GlobeViz({ regions, onSelectRegion }) {
+      return (
+        <div className="relative mx-auto" style={{ width: 260, height: 260 }}>
+          <div className="absolute inset-0 rounded-full" style={{
+            background: "radial-gradient(circle at 38% 38%, #1a2332, #0d1117 55%, #080a0d)",
+            boxShadow: "0 0 60px rgba(45,212,191,0.06), inset 0 0 40px rgba(255,255,255,0.015)"
+          }}>
+            <svg className="absolute inset-0" viewBox="0 0 260 260" fill="none">
+              <circle cx="130" cy="130" r="125" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" />
+              <ellipse cx="130" cy="130" rx="125" ry="60" stroke="rgba(255,255,255,0.025)" strokeWidth="0.5" />
+              <ellipse cx="130" cy="130" rx="125" ry="30" stroke="rgba(255,255,255,0.02)" strokeWidth="0.5" />
+              <ellipse cx="130" cy="130" rx="60" ry="125" stroke="rgba(255,255,255,0.025)" strokeWidth="0.5" />
+              <ellipse cx="130" cy="130" rx="30" ry="125" stroke="rgba(255,255,255,0.02)" strokeWidth="0.5" />
+              <line x1="5" y1="130" x2="255" y2="130" stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" />
+            </svg>
+          </div>
+          {regions.map((r, i) => (
+            <button key={r.name} onClick={() => onSelectRegion(r.name)}
+              className="absolute group" style={{ left: r.dotX, top: r.dotY, transform: "translate(-50%, -50%)" }}>
+              <div className="relative">
+                <div className="w-3 h-3 rounded-full animate-pulse-dot" style={{ background: getScoreColor(r.score).hex, boxShadow: `0 0 8px ${getScoreColor(r.score).hex}44` }} />
+                <div className="absolute left-1/2 -translate-x-1/2 -top-7 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-xs text-neutral-200 pointer-events-none">
+                  {r.name}: {r.score}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // LANDING PAGE
+    // ============================================================
+
+    function LandingPage({ onSelectPillar, onSelectProduct, onSelectRegion }) {
+      return (
+        <div className="space-y-6 animate-fade-in">
+          {/* AI Narrative */}
+          <Card className="border-l-2 border-l-teal-700/40">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-teal-950/50 border border-teal-800/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Icon name="sparkles" size={14} color="#2dd4bf" />
+              </div>
+              <div>
+                <p className="text-xs text-teal-400 font-medium mb-1 uppercase tracking-wider">AI Narrative Summary</p>
+                <p className="text-sm text-neutral-400 leading-relaxed">{AI_NARRATIVES.landing}</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Score + Trend */}
+          <div className="grid grid-cols-3 gap-5">
+            <Card className="flex flex-col items-center justify-center text-center">
+              <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Overall Brand Perception</p>
+              <ScoreRing score={OVERALL_SCORE} size={130} />
+              <div className="mt-3 flex items-center gap-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${getScoreColor(OVERALL_SCORE).bg} ${getScoreColor(OVERALL_SCORE).text}`}>
+                  {getScoreLabel(OVERALL_SCORE)}
+                </span>
+                <TrendIndicator trend={OVERALL_TREND} />
+              </div>
+            </Card>
+            <Card className="col-span-2">
+              <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">12-Month Perception Trend</p>
+              <TrendChart data={MONTHLY_TREND} color="#2dd4bf" height={160} />
+            </Card>
+          </div>
+
+          {/* Pillar Cards */}
+          <div>
+            <SectionHeader title="Perception Pillars" icon="layers" />
+            <div className="grid grid-cols-5 gap-3">
+              {PILLARS.map((p, i) => (
+                <Card key={p.id} hover onClick={() => onSelectPillar(p.id)}
+                  className={`stagger-${i+1} animate-fade-in opacity-0`}
+                  style={{ borderTop: `2px solid ${p.color}33` }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: p.color + "15" }}>
+                      <Icon name={p.icon} size={14} color={p.color} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-neutral-400 truncate">{p.name}</p>
+                      <p className="text-xs text-neutral-600">{p.weight}% weight</p>
+                    </div>
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <span className="font-serif text-2xl font-bold text-white">{p.score}</span>
+                    <TrendIndicator trend={p.trend} />
+                  </div>
+                  <div className="mt-2 bg-neutral-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full animate-bar" style={{ width: `${p.score}%`, background: p.color }} />
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Product Lines + Claims */}
+          <div className="grid grid-cols-2 gap-5">
+            {/* Product Lines */}
+            <div>
+              <SectionHeader title="Perception by Product Line" icon="flask" />
+              <div className="space-y-2">
+                {PRODUCT_LINES.map(prod => (
+                  <Card key={prod.name} hover onClick={() => onSelectProduct(prod.name)} className="!p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-1 h-10 rounded-full" style={{ background: PRODUCT_COLORS[prod.name] }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="font-serif text-sm font-semibold text-neutral-200">{prod.name}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="font-serif text-lg font-bold text-white">{prod.score}</span>
+                            <TrendIndicator trend={prod.trend} />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-xs text-neutral-500">{prod.category}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${getScoreColor(prod.score).bg} ${getScoreColor(prod.score).text}`}>{getScoreLabel(prod.score)}</span>
+                        </div>
+                      </div>
+                      <Icon name="chevron-right" size={14} color="#525252" />
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Marketing Claim Penetration */}
+            <div>
+              <SectionHeader title="Marketing Claim Penetration" icon="crosshair" />
+              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+                {MARKETING_CLAIMS.map(claim => (
+                  <ClaimCard key={claim.id} claim={claim} compact />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Chatbot Perception */}
+          <ChatbotPerceptionSection level="global" />
+
+          {/* Social Network Perception */}
+          <SocialPerceptionSection level="global" />
+
+          {/* Globe + Regions */}
+          <div className="grid grid-cols-3 gap-5">
+            <Card className="flex items-center justify-center">
+              <GlobeViz regions={REGIONS} onSelectRegion={onSelectRegion} />
+            </Card>
+            <Card className="col-span-2">
+              <SectionHeader title="Regional Perception" icon="globe" />
+              <BarList items={REGIONS.map(r => ({ name: `${r.name}  (${r.trend > 0 ? '+' : ''}${r.trend})`, value: r.score }))} maxValue={100} height={8} />
+              <div className="mt-4 grid grid-cols-5 gap-2">
+                {REGIONS.map(r => (
+                  <button key={r.name} onClick={() => onSelectRegion(r.name)}
+                    className="text-center p-2 rounded-lg bg-neutral-800/40 hover:bg-neutral-800/80 transition-colors">
+                    <p className="font-serif text-lg font-bold text-white">{r.score}</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">{r.name}</p>
+                  </button>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // PILLAR DETAIL
+    // ============================================================
+
+    function PillarDetail({ pillarId, onBack }) {
+      const pillar = PILLARS.find(p => p.id === pillarId);
+      if (!pillar) return null;
+      const trend = PILLAR_TRENDS[pillarId] || [];
+      const signals = PILLAR_SIGNALS[pillarId] || [];
+      const demos = PILLAR_DEMOGRAPHICS[pillarId] || [];
+      const comps = PILLAR_COMPETITORS[pillarId] || [];
+      const sov = PILLAR_SOV[pillarId] || [];
+      const narrative = AI_NARRATIVES[pillarId] || "";
+      const claims = MARKETING_CLAIMS.filter(c => c.pillar === pillarId);
+
+      return (
+        <div className="space-y-5 animate-fade-in">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button onClick={() => onBack("landing")} className="text-neutral-500 hover:text-neutral-300 transition-colors">
+                <Icon name="arrow-left" size={18} />
+              </button>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: pillar.color + "20" }}>
+                <Icon name={pillar.icon} size={18} color={pillar.color} />
+              </div>
+              <div>
+                <h1 className="font-serif text-xl font-bold text-white">{pillar.name}</h1>
+                <p className="text-xs text-neutral-500">{pillar.weight}% of overall perception score</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <span className="font-serif text-3xl font-bold text-white">{pillar.score}</span>
+                <span className="text-neutral-500 text-sm ml-1">/ 100</span>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${getScoreColor(pillar.score).bg} ${getScoreColor(pillar.score).text}`}>{getScoreLabel(pillar.score)}</span>
+                <TrendIndicator trend={pillar.trend} />
+              </div>
+            </div>
+          </div>
+
+          {/* AI Narrative */}
+          <Card className="border-l-2" style={{ borderLeftColor: pillar.color + "66" }}>
+            <div className="flex items-start gap-3">
+              <Icon name="sparkles" size={14} color={pillar.color} />
+              <p className="text-sm text-neutral-400 leading-relaxed">{narrative}</p>
+            </div>
+          </Card>
+
+          {/* Trend */}
+          <Card>
+            <SectionHeader title="12-Month Trend" icon="activity" />
+            <TrendChart data={trend} color={pillar.color} height={180} />
+          </Card>
+
+          {/* Demographics + Competitors + SoV */}
+          <div className="grid grid-cols-3 gap-5">
+            <Card>
+              <SectionHeader title="Demographic Perception" icon="users" />
+              <BarList items={demos.map(d => ({ name: d.name, value: d.score }))} maxValue={100} />
+            </Card>
+            <Card>
+              <SectionHeader title="Competitive Benchmark" icon="radar" />
+              <BarList items={comps.map(c => ({ name: c.name, value: c.score, color: c.name === "Sisley" ? pillar.color : "#525252" }))} maxValue={100}
+                colorFn={item => item.color || "#525252"} />
+            </Card>
+            <Card>
+              <SectionHeader title="Share of Voice" icon="activity" />
+              <BarList items={sov.map(s => ({ name: s.name, value: s.pct, pct: s.pct }))} maxValue={40}
+                colorFn={() => pillar.color} />
+            </Card>
+          </div>
+
+          {/* Chatbot Perception */}
+          <ChatbotPerceptionSection level="pillar" pillarId={pillarId} />
+
+          {/* Claims */}
+          {claims.length > 0 && (
+            <div>
+              <SectionHeader title="Marketing Claim Penetration" icon="crosshair" />
+              <div className="grid grid-cols-2 gap-3">
+                {claims.map((c, i) => (
+                  <ClaimCard key={i} claim={c} showBreakdown />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Signals */}
+          <Card>
+            <SectionHeader title="Key Signals" icon="activity" />
+            {signals.map((s, i) => <SignalCard key={i} signal={s} />)}
+          </Card>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // PRODUCT DETAIL
+    // ============================================================
+
+    function ProductDetail({ productName, onBack }) {
+      const prod = PRODUCT_LINES.find(p => p.name === productName);
+      if (!prod) return null;
+      const narrative = PRODUCT_NARRATIVES[productName] || "";
+      const trend = PRODUCT_TRENDS[productName] || [];
+      const pillarScores = PRODUCT_PILLAR_SCORES[productName] || {};
+      const geoScores = PRODUCT_GEO_SCORES[productName] || {};
+      const demoScores = PRODUCT_DEMO_SCORES[productName] || {};
+      const signals = PRODUCT_SIGNALS[productName] || [];
+      const claims = PRODUCT_CLAIMS[productName] || [];
+      const prodColor = PRODUCT_COLORS[productName] || "#2dd4bf";
+
+      const pillarItems = PILLARS.map(p => ({ name: p.name, value: pillarScores[p.id] || 0, color: p.color }));
+      const geoItems = Object.entries(geoScores).map(([k,v]) => ({ name: k, value: v }));
+      const demoItems = Object.entries(demoScores).map(([k,v]) => ({ name: k, value: v }));
+
+      return (
+        <div className="space-y-5 animate-fade-in">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button onClick={() => onBack("landing")} className="text-neutral-500 hover:text-neutral-300 transition-colors">
+                <Icon name="arrow-left" size={18} />
+              </button>
+              <div className="w-1.5 h-10 rounded-full" style={{ background: prodColor }} />
+              <div>
+                <h1 className="font-serif text-xl font-bold text-white">{productName}</h1>
+                <p className="text-xs text-neutral-500">{prod.category}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <span className="font-serif text-3xl font-bold text-white">{prod.score}</span>
+                <span className="text-neutral-500 text-sm ml-1">/ 100</span>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <span className={`text-xs px-2 py-0.5 rounded-full ${getScoreColor(prod.score).bg} ${getScoreColor(prod.score).text}`}>{getScoreLabel(prod.score)}</span>
+                <TrendIndicator trend={prod.trend} />
+              </div>
+            </div>
+          </div>
+
+          {/* AI Narrative + Trend */}
+          <div className="grid grid-cols-3 gap-5">
+            <Card className="border-l-2" style={{ borderLeftColor: prodColor + "66" }}>
+              <div className="flex items-start gap-2 mb-2">
+                <Icon name="sparkles" size={14} color={prodColor} />
+                <p className="text-xs font-medium uppercase tracking-wider" style={{ color: prodColor }}>AI Analysis</p>
+              </div>
+              <p className="text-sm text-neutral-400 leading-relaxed">{narrative}</p>
+            </Card>
+            <Card className="col-span-2">
+              <SectionHeader title="12-Month Product Trend" icon="activity" />
+              <TrendChart data={trend} color={prodColor} height={160} />
+            </Card>
+          </div>
+
+          {/* Pillar Breakdown + Geography + Demographics */}
+          <div className="grid grid-cols-3 gap-5">
+            <Card>
+              <SectionHeader title="Perception Across Pillars" icon="layers" />
+              <BarList items={pillarItems} maxValue={100} colorFn={item => item.color} />
+            </Card>
+            <Card>
+              <SectionHeader title="Geographic Performance" icon="globe" />
+              <BarList items={geoItems} maxValue={100} />
+            </Card>
+            <Card>
+              <SectionHeader title="Demographic Resonance" icon="users" />
+              <BarList items={demoItems} maxValue={100} />
+            </Card>
+          </div>
+
+          {/* Chatbot Perception */}
+          <ChatbotPerceptionSection level="product" productName={productName} />
+
+          {/* Social Network Perception */}
+          <SocialPerceptionSection level="product" productName={productName} />
+
+          {/* Claims */}
+          {claims.length > 0 && (
+            <div>
+              <SectionHeader title="Product Claim Penetration" icon="crosshair" />
+              <div className="grid grid-cols-2 gap-3">
+                {claims.map((c, i) => (
+                  <ClaimCard key={i} claim={c} showBreakdown />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Signals */}
+          <Card>
+            <SectionHeader title="Key Signals" icon="activity" />
+            {signals.map((s, i) => <SignalCard key={i} signal={s} />)}
+          </Card>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // REGION MODAL
+    // ============================================================
+
+    function RegionModal({ regionName, onClose }) {
+      const region = REGIONS.find(r => r.name === regionName);
+      const detail = REGION_DETAILS[regionName];
+      if (!region || !detail) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+          <div className="bg-neutral-900 border border-neutral-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-serif text-lg font-bold text-white">{regionName}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="font-serif text-2xl font-bold" style={{ color: getScoreColor(region.score).hex }}>{region.score}</span>
+                  <TrendIndicator trend={region.trend} />
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${getScoreColor(region.score).bg} ${getScoreColor(region.score).text}`}>{getScoreLabel(region.score)}</span>
+                </div>
+              </div>
+              <button onClick={onClose} className="text-neutral-500 hover:text-neutral-300 transition-colors">
+                <Icon name="x" size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-neutral-400 leading-relaxed mb-4">{detail.summary}</p>
+            <div className="border-t border-neutral-800 pt-4">
+              <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Key Signals</p>
+              {detail.signals.map((s, i) => <SignalCard key={i} signal={s} />)}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // CAMPAIGN EFFICACY VIEW
+    // ============================================================
+
+    function CampaignView({ onBack }) {
+      const [selectedId, setSelectedId] = useState(null);
+      const [detailTab, setDetailTab] = useState('overview');
+      const [showCreate, setShowCreate] = useState(false);
+      const [draft, setDraft] = useState({ name: '', objective: '', pillars: [], channels: [], budget: '', startDate: '', endDate: '' });
+      const [createStep, setCreateStep] = useState(0);
+      const campaign = CAMPAIGNS.find(c => c.id === selectedId) || null;
+
+      const DETAIL_TABS = [
+        { id: 'overview', label: 'Overview' },
+        { id: 'channels', label: 'Channel Breakdown' },
+        { id: 'signals', label: 'Signal Impact' }
+      ];
+
+      const CHANNEL_OPTIONS = [
+        { id: 'instagram', name: 'Instagram', color: '#E1306C' },
+        { id: 'tiktok', name: 'TikTok', color: '#00f2ea' },
+        { id: 'editorial', name: 'Editorial / PR', color: '#a78bfa' },
+        { id: 'youtube', name: 'YouTube', color: '#FF0000' },
+        { id: 'retail', name: 'Retail Partners', color: '#fbbf24' },
+        { id: 'kol', name: 'KOL / Creators', color: '#34d399' }
+      ];
+
+      const CREATE_STEPS = [
+        { label: 'Define', desc: 'Name and objective' },
+        { label: 'Target', desc: 'Pillars to move' },
+        { label: 'Channels', desc: 'Distribution mix' },
+        { label: 'Review', desc: 'Confirm and launch' }
+      ];
+
+      function toggleDraftPillar(id) {
+        const curr = draft.pillars;
+        const next = curr.indexOf(id) >= 0 ? curr.filter(x => x !== id) : curr.concat([id]);
+        setDraft({ ...draft, pillars: next });
+      }
+      function toggleDraftChannel(id) {
+        const curr = draft.channels;
+        const next = curr.indexOf(id) >= 0 ? curr.filter(x => x !== id) : curr.concat([id]);
+        setDraft({ ...draft, channels: next });
+      }
+      function selectCampaign(id) {
+        setSelectedId(id === selectedId ? null : id);
+        setDetailTab('overview');
+        setShowCreate(false);
+      }
+      function startCreate() {
+        setShowCreate(true);
+        setSelectedId(null);
+        setCreateStep(0);
+        setDraft({ name: '', objective: '', pillars: [], channels: [], budget: '', startDate: '', endDate: '' });
+      }
+
+      return (
+        <div className="flex flex-col min-w-0 bg-neutral-950 overflow-hidden -m-6 h-[calc(100vh-3.5rem)]" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+
+          {/* Top bar */}
+          <div className="px-6 py-3 border-b border-neutral-800/60 flex items-center justify-between bg-neutral-950 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <button onClick={() => onBack("landing")} className="flex items-center gap-1.5 text-neutral-500 hover:text-neutral-200 transition text-xs font-medium">
+                <Icon name="arrow-left" size={14} />
+                Back to Overview
+              </button>
+              <span className="text-neutral-700">/</span>
+              <div className="flex items-center gap-2">
+                <Icon name="activity" size={14} color="#2dd4bf" />
+                <span className="text-xs font-semibold text-white">Campaign Efficacy</span>
+              </div>
+            </div>
+            <button onClick={startCreate}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold transition">
+              <Icon name="plus" size={14} />
+              New Campaign
+            </button>
+          </div>
+
+          <div className="flex flex-1 overflow-hidden">
+
+            {/* LEFT — Campaign picker */}
+            <div className="w-72 flex-shrink-0 border-r border-neutral-800/60 flex flex-col overflow-hidden bg-neutral-950">
+              <div className="px-4 pt-4 pb-2 flex-shrink-0">
+                <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Campaigns</p>
+                <p className="text-[11px] text-neutral-600 mt-1">{CAMPAIGNS.length} campaigns · {CAMPAIGNS.filter(c => c.status === 'in_progress').length} active</p>
+              </div>
+
+              {/* Status filter pills */}
+              <div className="px-4 pb-3 flex items-center gap-1.5 flex-shrink-0">
+                {['all', 'completed', 'in_progress', 'projected'].map(f => {
+                  const count = f === 'all' ? CAMPAIGNS.length : CAMPAIGNS.filter(c => c.status === f).length;
+                  const label = f === 'all' ? 'All' : f === 'in_progress' ? 'Active' : f === 'completed' ? 'Done' : 'Planned';
+                  return (
+                    <span key={f} className="text-[9px] font-semibold text-neutral-500 bg-neutral-900 border border-neutral-800 px-2 py-1 rounded-md">
+                      {label} ({count})
+                    </span>
+                  );
+                })}
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2">
+                {CAMPAIGNS.map(c => {
+                  const isActive = c.id === selectedId;
+                  const sb = STATUS_BADGE[c.status] || STATUS_BADGE.completed;
+                  let primaryPillar = null;
+                  let maxImpact = 0;
+                  PILLARS.forEach(p => {
+                    const imp = c.pillarImpact[p.id] || 0;
+                    if (imp > maxImpact) { maxImpact = imp; primaryPillar = p; }
+                  });
+                  return (
+                    <button key={c.id} onClick={() => selectCampaign(c.id)}
+                      className={`w-full text-left px-3.5 py-3.5 rounded-xl border transition-all ${isActive ? 'bg-teal-950/40 border-teal-800' : 'bg-neutral-900 border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800/60'}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border ${sb.bg} ${sb.text} ${sb.border}`}>{sb.label}</span>
+                        {primaryPillar && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: primaryPillar.color + '20', color: primaryPillar.color }}>
+                            {primaryPillar.name.split(' ')[0]} +{maxImpact}
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-xs font-semibold leading-snug ${isActive ? 'text-teal-300' : 'text-neutral-200'}`}>{c.name}</p>
+                      <p className="text-[10px] text-neutral-500 mt-1">{c.dateRange}</p>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        {c.channels.map(ch => (
+                          <span key={ch} className="text-[9px] text-neutral-500 bg-neutral-800 px-1.5 py-0.5 rounded">{ch}</span>
+                        ))}
+                      </div>
+                      {/* Impact mini-bar */}
+                      <div className="flex items-center gap-1 mt-2.5">
+                        {PILLARS.map(p => {
+                          const imp = c.pillarImpact[p.id] || 0;
+                          return (
+                            <div key={p.id} className="flex-1 h-1 rounded-full overflow-hidden bg-neutral-800">
+                              {imp > 0 && <div className="h-full rounded-full" style={{ width: (imp / 8 * 100) + '%', backgroundColor: p.color }} />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* MAIN CONTENT */}
+            {showCreate ? (
+              /* ===================== CREATE CAMPAIGN FLOW ===================== */
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-8 max-w-3xl mx-auto">
+
+                  {/* Step indicator */}
+                  <div className="flex items-center gap-3 mb-8">
+                    {CREATE_STEPS.map((step, i) => {
+                      const isCompleted = i < createStep;
+                      const isCurrent = i === createStep;
+                      return (
+                        <div key={i} className="flex items-center gap-3 flex-1">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all ${isCompleted ? 'bg-teal-600 border-teal-500 text-white' : isCurrent ? 'bg-teal-950 border-teal-700 text-teal-400' : 'bg-neutral-900 border-neutral-800 text-neutral-600'}`}>
+                              {isCompleted ? <Icon name="check" size={12} /> : i + 1}
+                            </div>
+                            <div>
+                              <p className={`text-xs font-semibold ${isCurrent ? 'text-white' : isCompleted ? 'text-neutral-300' : 'text-neutral-600'}`}>{step.label}</p>
+                              <p className="text-[10px] text-neutral-600">{step.desc}</p>
+                            </div>
+                          </div>
+                          {i < CREATE_STEPS.length - 1 && <div className={`flex-1 h-px ${i < createStep ? 'bg-teal-700' : 'bg-neutral-800'}`} />}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Step 0 — Define */}
+                  {createStep === 0 && (
+                    <div className="space-y-5">
+                      <div>
+                        <h2 className="text-lg font-bold text-white mb-1">Define your campaign</h2>
+                        <p className="text-xs text-neutral-500">Set the name, objective, budget, and timeline. This shapes how Omniscient measures impact.</p>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5 block">Campaign Name</label>
+                          <input type="text" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}
+                            placeholder="e.g. Black Rose Spring Launch"
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-neutral-600 focus:border-teal-700 focus:outline-none transition" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5 block">Objective</label>
+                          <textarea value={draft.objective} onChange={e => setDraft({ ...draft, objective: e.target.value })}
+                            placeholder="What perception shift are you trying to achieve?"
+                            rows="3"
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-neutral-600 focus:border-teal-700 focus:outline-none transition resize-none" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5 block">Budget</label>
+                            <input type="text" value={draft.budget} onChange={e => setDraft({ ...draft, budget: e.target.value })}
+                              placeholder="e.g. €200K"
+                              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-neutral-600 focus:border-teal-700 focus:outline-none transition" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5 block">Start Date</label>
+                            <input type="text" value={draft.startDate} onChange={e => setDraft({ ...draft, startDate: e.target.value })}
+                              placeholder="e.g. Apr 15, 2026"
+                              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-neutral-600 focus:border-teal-700 focus:outline-none transition" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5 block">End Date</label>
+                            <input type="text" value={draft.endDate} onChange={e => setDraft({ ...draft, endDate: e.target.value })}
+                              placeholder="e.g. Jun 30, 2026"
+                              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-neutral-600 focus:border-teal-700 focus:outline-none transition" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 1 — Target Pillars */}
+                  {createStep === 1 && (
+                    <div className="space-y-5">
+                      <div>
+                        <h2 className="text-lg font-bold text-white mb-1">Which pillars should this move?</h2>
+                        <p className="text-xs text-neutral-500">Select the perception pillars this campaign is designed to impact. Omniscient will track lift against these.</p>
+                      </div>
+                      <div className="grid grid-cols-5 gap-3">
+                        {PILLARS.map(p => {
+                          const isSelected = draft.pillars.indexOf(p.id) >= 0;
+                          const sc = getScoreColor(p.score);
+                          return (
+                            <button key={p.id} onClick={() => toggleDraftPillar(p.id)}
+                              className={`flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all ${isSelected ? 'border-teal-600 bg-teal-950/30' : 'border-neutral-800 bg-neutral-900 hover:border-neutral-700'}`}>
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${isSelected ? 'bg-teal-900/40' : 'bg-neutral-800'}`}
+                                style={isSelected ? { backgroundColor: p.color + '20' } : {}}>
+                                <Icon name={p.icon} size={20} color={isSelected ? p.color : '#666'} />
+                              </div>
+                              <div className="text-center">
+                                <p className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-neutral-400'}`}>{p.name}</p>
+                                <p className="text-[10px] text-neutral-600 mt-0.5">Score: {p.score}</p>
+                              </div>
+                              {isSelected && (
+                                <div className="w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center">
+                                  <Icon name="check" size={12} color="white" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {draft.pillars.length > 0 && (
+                        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
+                          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2">Measurement Preview</p>
+                          <p className="text-xs text-neutral-400 leading-relaxed">
+                            Omniscient will measure perception lift across <span className="text-white font-semibold">{draft.pillars.length} pillar{draft.pillars.length > 1 ? 's' : ''}</span> — tracking signal volume, sentiment shift, and earned media value before, during, and after the campaign window.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step 2 — Channels */}
+                  {createStep === 2 && (
+                    <div className="space-y-5">
+                      <div>
+                        <h2 className="text-lg font-bold text-white mb-1">Select distribution channels</h2>
+                        <p className="text-xs text-neutral-500">Choose where this campaign will run. Each channel will be tracked for impressions, engagement, and sentiment independently.</p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        {CHANNEL_OPTIONS.map(ch => {
+                          const isSelected = draft.channels.indexOf(ch.id) >= 0;
+                          return (
+                            <button key={ch.id} onClick={() => toggleDraftChannel(ch.id)}
+                              className={`flex items-center gap-3 px-4 py-4 rounded-xl border-2 transition-all ${isSelected ? 'border-teal-600 bg-teal-950/30' : 'border-neutral-800 bg-neutral-900 hover:border-neutral-700'}`}>
+                              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: isSelected ? ch.color : '#555' }} />
+                              <span className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-neutral-400'}`}>{ch.name}</span>
+                              {isSelected && (
+                                <div className="ml-auto w-5 h-5 rounded-full bg-teal-600 flex items-center justify-center flex-shrink-0">
+                                  <Icon name="check" size={12} color="white" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 3 — Review */}
+                  {createStep === 3 && (
+                    <div className="space-y-5">
+                      <div>
+                        <h2 className="text-lg font-bold text-white mb-1">Review and launch</h2>
+                        <p className="text-xs text-neutral-500">Confirm your campaign configuration. Once launched, Omniscient begins tracking immediately.</p>
+                      </div>
+                      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-sm font-bold text-white">{draft.name || 'Untitled Campaign'}</p>
+                            <p className="text-xs text-neutral-400 mt-1 leading-relaxed max-w-lg">{draft.objective || 'No objective set'}</p>
+                          </div>
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded border bg-blue-950/50 text-blue-400 border-blue-800">Draft</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 pt-3 border-t border-neutral-800">
+                          <div>
+                            <p className="text-[10px] text-neutral-500 mb-1">Budget</p>
+                            <p className="text-xs font-semibold text-neutral-200">{draft.budget || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-neutral-500 mb-1">Period</p>
+                            <p className="text-xs font-semibold text-neutral-200">{draft.startDate && draft.endDate ? draft.startDate + ' — ' + draft.endDate : '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-neutral-500 mb-1">Channels</p>
+                            <p className="text-xs font-semibold text-neutral-200">{draft.channels.length > 0 ? draft.channels.map(id => { const ch = CHANNEL_OPTIONS.find(c => c.id === id); return ch ? ch.name : id; }).join(', ') : '—'}</p>
+                          </div>
+                        </div>
+                        <div className="pt-3 border-t border-neutral-800">
+                          <p className="text-[10px] text-neutral-500 mb-2">Target Pillars</p>
+                          <div className="flex items-center gap-2">
+                            {draft.pillars.map(pid => {
+                              const p = PILLARS.find(x => x.id === pid);
+                              if (!p) return null;
+                              return (
+                                <span key={pid} className="flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: p.color + '20', color: p.color }}>
+                                  <Icon name={p.icon} size={12} color={p.color} />
+                                  {p.name}
+                                </span>
+                              );
+                            })}
+                            {draft.pillars.length === 0 && <span className="text-xs text-neutral-600">No pillars selected</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-teal-950/30 border border-teal-900 rounded-xl p-4 flex items-start gap-3">
+                        <Icon name="sparkles" size={16} color="#2dd4bf" />
+                        <div>
+                          <p className="text-xs font-semibold text-teal-300">What happens next</p>
+                          <p className="text-[11px] text-teal-400/70 mt-1 leading-relaxed">Omniscient will begin monitoring signal activity across your selected channels and pillars. You'll see real-time impressions, engagement, and sentiment data as the campaign runs. A post-campaign efficacy report will be generated automatically.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Navigation buttons */}
+                  <div className="flex items-center justify-between mt-8 pt-6 border-t border-neutral-800">
+                    <button onClick={() => { if (createStep === 0) { setShowCreate(false); } else { setCreateStep(createStep - 1); } }}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white transition">
+                      <Icon name="arrow-left" size={14} />
+                      {createStep === 0 ? 'Cancel' : 'Back'}
+                    </button>
+                    {createStep < 3 ? (
+                      <button onClick={() => setCreateStep(createStep + 1)}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold transition">
+                        Continue
+                        <Icon name="chevron-right" size={14} />
+                      </button>
+                    ) : (
+                      <button onClick={() => setShowCreate(false)}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold transition">
+                        <Icon name="sparkles" size={14} />
+                        Launch Campaign
+                      </button>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+
+            ) : !campaign ? (
+              /* ===================== EMPTY STATE ===================== */
+              <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center p-12">
+                <div className="w-14 h-14 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center">
+                  <Icon name="activity" size={24} color="#404040" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-neutral-400">Select a campaign to analyse</p>
+                  <p className="text-xs text-neutral-600 mt-1">Or create a new one to start measuring perception impact</p>
+                </div>
+                <button onClick={startCreate}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-xs font-semibold text-neutral-300 hover:text-white transition mt-2">
+                  <Icon name="plus" size={14} />
+                  Create Campaign
+                </button>
+              </div>
+
+            ) : (
+              /* ===================== CAMPAIGN DETAIL ===================== */
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-6 space-y-6">
+
+                  {/* Header */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2.5 mb-1.5">
+                        <h2 className="text-base font-bold text-white">{campaign.name}</h2>
+                        {(() => { const sb = STATUS_BADGE[campaign.status] || STATUS_BADGE.completed; return (
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${sb.bg} ${sb.text} ${sb.border}`}>{sb.label}</span>
+                        ); })()}
+                      </div>
+                      <p className="text-xs text-neutral-400 leading-relaxed max-w-xl">{campaign.summary}</p>
+
+                      {/* Assigned pillars */}
+                      <div className="flex items-center gap-2 mt-3">
+                        {PILLARS.filter(p => (campaign.pillarImpact[p.id] || 0) > 0).map(p => (
+                          <span key={p.id} className="flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: p.color + '20', color: p.color }}>
+                            <Icon name={p.icon} size={12} color={p.color} />
+                            {p.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      <div className="text-right">
+                        <p className="text-[10px] text-neutral-500">Budget</p>
+                        <p className="text-sm font-bold text-neutral-200">{campaign.budget}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-neutral-500">Period</p>
+                        <p className="text-sm font-semibold text-neutral-300">{campaign.dateRange}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Top-line metrics */}
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { label: 'Total Impressions', value: campaign.metrics.totalImpressions, icon: 'eye' },
+                      { label: 'Avg Engagement', value: campaign.metrics.avgEngagement, icon: 'activity' },
+                      { label: 'Earned Media Value', value: campaign.metrics.earnedMediaValue, icon: 'dollar' },
+                      { label: 'Sentiment Shift', value: (campaign.metrics.sentimentShift > 0 ? '+' : '') + campaign.metrics.sentimentShift + ' pts', icon: 'trending-up' }
+                    ].map((m, i) => (
+                      <div key={i} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Icon name={m.icon} size={12} color="#525252" />
+                          <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">{m.label}</p>
+                        </div>
+                        <p className="text-xl font-bold text-white">{m.value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Detail sub-tabs */}
+                  <div className="flex items-center gap-1 border-b border-neutral-800 pb-px">
+                    {DETAIL_TABS.map(tab => {
+                      const isActive = tab.id === detailTab;
+                      return (
+                        <button key={tab.id} onClick={() => setDetailTab(tab.id)}
+                          className={`px-4 py-2.5 text-xs font-semibold transition-all border-b-2 -mb-px ${isActive ? 'text-teal-400 border-teal-400' : 'text-neutral-500 border-transparent hover:text-neutral-300'}`}>
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* OVERVIEW TAB */}
+                  {detailTab === 'overview' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Pillar impact */}
+                      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+                        <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-4">Perception Pillar Impact</p>
+                        <div className="space-y-3">
+                          {PILLARS.map(p => {
+                            const impact = campaign.pillarImpact[p.id] || 0;
+                            return (
+                              <div key={p.id} className="flex items-center gap-3">
+                                <Icon name={p.icon} size={14} color={p.color} />
+                                <span className="text-xs text-neutral-400 w-32 flex-shrink-0">{p.name}</span>
+                                <div className="flex-1 h-2 bg-neutral-800 rounded-full overflow-hidden">
+                                  {impact > 0 && <div className="h-full bg-teal-500 rounded-full" style={{ width: (impact / 10 * 100) + '%' }} />}
+                                </div>
+                                <span className={`text-xs font-bold w-12 text-right ${impact > 0 ? 'text-teal-400' : impact < 0 ? 'text-red-400' : 'text-neutral-600'}`}>
+                                  {impact > 0 ? '+' + impact : impact === 0 ? '—' : impact}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Score projection */}
+                      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+                        <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-4">{campaign.status === 'projected' ? 'Projected Score Impact' : 'Score Impact'}</p>
+                        <div className="space-y-4">
+                          {PILLARS.filter(p => (campaign.pillarImpact[p.id] || 0) !== 0).map(p => {
+                            const impact = campaign.pillarImpact[p.id] || 0;
+                            const projected = Math.min(100, p.score + impact);
+                            return (
+                              <div key={p.id}>
+                                <div className="flex items-center justify-between text-xs mb-1.5">
+                                  <span className="text-neutral-400">{p.name}</span>
+                                  <span>
+                                    <span className="text-neutral-500">{p.score}</span>
+                                    <span className="text-neutral-600 mx-1">→</span>
+                                    <span className="text-white font-medium">{projected}</span>
+                                    <span className={`ml-1 ${impact > 0 ? 'text-teal-400' : 'text-red-400'}`}>
+                                      ({impact > 0 ? '+' : ''}{impact})
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="h-2 bg-neutral-800 rounded-full overflow-hidden relative">
+                                  <div className="h-full rounded-full absolute" style={{ width: p.score + '%', background: '#525252' }} />
+                                  <div className="h-full rounded-full absolute animate-bar" style={{ width: projected + '%', background: p.color }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center gap-3 mt-4 pt-3 border-t border-neutral-800">
+                          {PILLARS.filter(p => (campaign.pillarImpact[p.id] || 0) !== 0).map(p => (
+                            <div key={p.id} className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                              <span className="text-[10px] text-neutral-500">{p.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CHANNELS TAB */}
+                  {detailTab === 'channels' && (
+                    <div className="space-y-4">
+                      {campaign.channelPerformance.map((ch, i) => {
+                        const sentColor = ch.sentiment >= 75 ? 'text-teal-400' : ch.sentiment >= 55 ? 'text-amber-400' : 'text-red-400';
+                        return (
+                          <div key={i} className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-neutral-800 flex items-center justify-center">
+                                  <Icon name="activity" size={16} color="#a3a3a3" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-white">{ch.channel}</p>
+                                  <p className="text-[10px] text-neutral-500">{ch.impressions} impressions</p>
+                                </div>
+                              </div>
+                              <div className={`text-lg font-bold ${sentColor}`}>{ch.sentiment}%</div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className="bg-neutral-800/40 rounded-lg p-3">
+                                <p className="text-[10px] text-neutral-500 mb-1">Impressions</p>
+                                <p className="text-sm font-bold text-white">{ch.impressions}</p>
+                              </div>
+                              <div className="bg-neutral-800/40 rounded-lg p-3">
+                                <p className="text-[10px] text-neutral-500 mb-1">Engagement Rate</p>
+                                <p className="text-sm font-bold text-white">{ch.engagement}</p>
+                              </div>
+                              <div className="bg-neutral-800/40 rounded-lg p-3">
+                                <p className="text-[10px] text-neutral-500 mb-1">Net Sentiment</p>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-2 rounded-full overflow-hidden bg-neutral-700">
+                                    <div className="h-full bg-teal-500 rounded-full" style={{ width: ch.sentiment + '%' }} />
+                                  </div>
+                                  <span className={`text-xs font-bold ${sentColor}`}>{ch.sentiment}%</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Channel-specific signals */}
+                            <div className="mt-4 pt-3 border-t border-neutral-800">
+                              <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2">Signals from this channel</p>
+                              <div className="space-y-1.5">
+                                {campaign.keySignals.filter((sig, idx) => idx % campaign.channelPerformance.length === i).map((sig, j) => (
+                                  <div key={j} className="flex items-center gap-2">
+                                    <div className={`w-4 h-4 rounded-full flex items-center justify-center ${sig.sentiment === 'positive' ? 'bg-teal-950/60 text-teal-400' : 'bg-red-950/60 text-red-400'}`}>
+                                      <Icon name={sig.sentiment === 'positive' ? 'check' : 'alert-circle'} size={10} />
+                                    </div>
+                                    <p className="text-[11px] text-neutral-300">{sig.title}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* SIGNALS TAB */}
+                  {detailTab === 'signals' && (
+                    <div className="space-y-4">
+                      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+                        <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-4">Key Signals {campaign.status === 'projected' ? 'Projected' : 'Generated'}</p>
+                        <div className="space-y-3">
+                          {campaign.keySignals.map((sig, i) => (
+                            <div key={i} className="flex items-start gap-3 bg-neutral-800/30 rounded-lg px-4 py-3">
+                              <div className={`w-6 h-6 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center ${sig.sentiment === 'positive' ? 'bg-teal-950/60 text-teal-400' : 'bg-red-950/60 text-red-400'}`}>
+                                <Icon name={sig.sentiment === 'positive' ? 'check' : 'alert-circle'} size={12} />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-xs text-neutral-200 leading-snug">{sig.title}</p>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${sig.sentiment === 'positive' ? 'bg-teal-950/40 text-teal-400' : 'bg-red-950/40 text-red-400'}`}>
+                                    {sig.sentiment === 'positive' ? 'Positive' : 'Negative'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Pillar-by-pillar signal attribution */}
+                      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+                        <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-4">Pillar Attribution</p>
+                        <p className="text-[11px] text-neutral-600 mb-4">How this campaign's signals distribute across perception pillars</p>
+                        <div className="space-y-3">
+                          {PILLARS.map(p => {
+                            const impact = campaign.pillarImpact[p.id] || 0;
+                            if (impact === 0) return null;
+                            let totalImpact = 0;
+                            Object.values(campaign.pillarImpact).forEach(v => { totalImpact += Math.abs(v); });
+                            const pct = totalImpact > 0 ? Math.round(Math.abs(impact) / totalImpact * 100) : 0;
+                            return (
+                              <div key={p.id} className="flex items-center gap-3">
+                                <Icon name={p.icon} size={14} color={p.color} />
+                                <span className="text-xs text-neutral-300 w-32 flex-shrink-0">{p.name}</span>
+                                <div className="flex-1 h-3 bg-neutral-800 rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full" style={{ width: pct + '%', backgroundColor: p.color }} />
+                                </div>
+                                <span className="text-xs font-bold text-neutral-300 w-10 text-right">{pct}%</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================
+    // APP ROOT
+    // ============================================================
+
+    function App() {
+      const [view, setView] = useState("landing"); // landing | pillar | product | campaigns
+      const [selectedPillar, setSelectedPillar] = useState(null);
+      const [selectedProduct, setSelectedProduct] = useState(null);
+      const [selectedRegion, setSelectedRegion] = useState(null);
+
+      function handleSelectPillar(id) { setSelectedPillar(id); setView("pillar"); }
+      function handleSelectProduct(name) { setSelectedProduct(name); setView("product"); }
+      function handleSelectRegion(name) { setSelectedRegion(name); }
+      function handleOpenCampaigns() { setView("campaigns"); }
+      function handleBack(target) { setView(target || "landing"); setSelectedRegion(null); }
+
+      const pillarName = selectedPillar ? PILLARS.find(p => p.id === selectedPillar)?.name : null;
+
+      return (
+        <div className="flex h-screen bg-[#0a0a0a] text-white font-sans">
+          <Sidebar view={view} onNavigate={handleBack} onOpenCampaigns={handleOpenCampaigns} />
+          <div className="flex-1 flex flex-col min-w-0">
+            <HeaderBar view={view} pillarName={pillarName} productName={selectedProduct} onBack={handleBack} />
+            <main className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-7xl mx-auto">
+                {view === "landing" && (
+                  <LandingPage
+                    onSelectPillar={handleSelectPillar}
+                    onSelectProduct={handleSelectProduct}
+                    onSelectRegion={handleSelectRegion}
+                  />
+                )}
+                {view === "pillar" && (
+                  <PillarDetail pillarId={selectedPillar} onBack={handleBack} />
+                )}
+                {view === "product" && (
+                  <ProductDetail productName={selectedProduct} onBack={handleBack} />
+                )}
+                {view === "campaigns" && (
+                  <CampaignView onBack={handleBack} />
+                )}
+              </div>
+            </main>
+          </div>
+          {selectedRegion && <RegionModal regionName={selectedRegion} onClose={() => setSelectedRegion(null)} />}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // RENDER
+    // ============================================================
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+
+  </script>
+</body>
+</html>
