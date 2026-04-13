@@ -14,7 +14,15 @@
       "Bash(cat \"D:/spike/sis/sisley-narrative-penetration \\(1\\).html\")",
       "Bash(tr ';' '\\\\n')",
       "Bash(sed 's/\\\\$Y=/\\\\n\\\\$Y=/g')",
-      "Bash(grep \"^$Y=\")"
+      "Bash(grep \"^$Y=\")",
+      "WebSearch",
+      "WebFetch(domain:investors.on-running.com)",
+      "WebFetch(domain:www.on.com)",
+      "WebFetch(domain:press.on-running.com)",
+      "WebFetch(domain:nogood.io)",
+      "WebFetch(domain:footwearmagazine.com)",
+      "WebFetch(domain:hypeauditor.com)",
+      "WebFetch(domain:blog.hypeauditor.com)"
     ]
   }
 }
