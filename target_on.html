@@ -68,6 +68,8 @@
   <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
+  <script src="https://unpkg.com/globe.gl"></script>
+  <script src="https://unpkg.com/topojson-client"></script>
 
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback, useMemo } = React;
@@ -333,6 +335,58 @@
       { name: "Middle East",   score: 64, trend: 2, dotX: "58%", dotY: "40%", revenuePct:  2.1, revenueGrowth: "+38.0%", countries: ["AE", "SA"] },
       { name: "Latin America", score: 60, trend: 3, dotX: "32%", dotY: "58%", revenuePct:  1.5, revenueGrowth: "+44.0%", countries: ["BR", "MX"] }
     ];
+
+    const ZURICH_HQ = { lat: 47.3769, lng: 8.5417, label: "On HQ — Zurich" };
+
+    const REGION_COORDS = {
+      "North America": { lat:  39.0, lng:  -98.0, anchor: "Boston · NYC · LA" },
+      "Europe":        { lat:  50.5, lng:    9.0, anchor: "Zurich · London · Berlin" },
+      "Asia-Pacific":  { lat:  30.0, lng:  120.0, anchor: "Shenzhen · Tokyo · Sydney" },
+      "Middle East":   { lat:  24.5, lng:   54.0, anchor: "Dubai · Riyadh" },
+      "Latin America": { lat: -15.0, lng:  -55.0, anchor: "São Paulo · Mexico City" }
+    };
+
+    // Country (by name) → region mapping. Names match the world-atlas TopoJSON dataset
+    // (https://unpkg.com/world-atlas/countries-110m.json), which uses the Natural Earth
+    // 110m admin-0 vintage with `properties.name` set to the common English name.
+    const REGION_COUNTRIES = {
+      "North America": ["United States of America","Canada"],
+      "Europe":        ["United Kingdom","Germany","France","Switzerland","Italy","Spain","Netherlands","Belgium","Ireland","Austria","Portugal","Sweden","Norway","Denmark","Finland","Poland","Czech Republic","Czechia","Greece","Hungary","Romania","Bulgaria","Croatia","Slovenia","Slovakia","Lithuania","Latvia","Estonia","Luxembourg","Iceland","Ukraine","Serbia","Bosnia and Herzegovina","Bosnia and Herz.","Montenegro","North Macedonia","Macedonia","Albania","Moldova","Belarus"],
+      "Asia-Pacific":  ["China","Japan","Australia","South Korea","Korea","New Zealand","Singapore","Taiwan","Thailand","Malaysia","Indonesia","Philippines","Vietnam","India","Sri Lanka","Bangladesh","Myanmar","Cambodia","Laos","Nepal","Pakistan","Mongolia"],
+      "Middle East":   ["United Arab Emirates","Saudi Arabia","Israel","Turkey","Egypt","Kuwait","Qatar","Oman","Jordan","Bahrain","Iran","Iraq","Lebanon","Syria","Yemen","Palestine"],
+      "Latin America": ["Brazil","Mexico","Argentina","Chile","Colombia","Peru","Venezuela","Ecuador","Uruguay","Bolivia","Paraguay","Costa Rica","Panama","Dominican Republic","Dominican Rep.","Guatemala","Honduras","El Salvador","Nicaragua","Cuba","Puerto Rico"]
+    };
+    const COUNTRY_TO_REGION = Object.entries(REGION_COUNTRIES).reduce((acc, [region, names]) => {
+      names.forEach(n => { acc[n.toLowerCase()] = region; });
+      return acc;
+    }, {});
+
+    // Lazy-fetched and cached GeoJSON FeatureCollection (converted from world-atlas TopoJSON)
+    let _COUNTRIES_GEOJSON_CACHE = null;
+    function fetchCountriesGeoJSON() {
+      if (_COUNTRIES_GEOJSON_CACHE) return Promise.resolve(_COUNTRIES_GEOJSON_CACHE);
+      const sources = [
+        "https://unpkg.com/world-atlas@2/countries-110m.json",
+        "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
+      ];
+      const tryNext = (i) => {
+        if (i >= sources.length) return Promise.reject(new Error("All world-atlas URLs failed"));
+        return fetch(sources[i])
+          .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+          .catch(err => {
+            console.warn(`[GlobeView] ${sources[i]} → ${err.message}, trying next…`);
+            return tryNext(i + 1);
+          });
+      };
+      return tryNext(0).then(topo => {
+        if (!window.topojson || !window.topojson.feature) {
+          throw new Error("topojson-client did not load — cannot convert TopoJSON");
+        }
+        const geo = window.topojson.feature(topo, topo.objects.countries);
+        _COUNTRIES_GEOJSON_CACHE = geo;
+        return geo;
+      });
+    }
 
     const REGION_DETAILS = {
       "North America": {
@@ -2168,7 +2222,213 @@
     }
 
     // ============================================================
-    // GLOBE VISUALIZATION
+    // GLOBE VIEW — 3D globe via globe.gl (UMD CDN)
+    // ============================================================
+
+    function GlobeView({ regions, onSelectRegion, height = 360, fill = false }) {
+      const ref = useRef();
+      const globeRef = useRef();
+      const [status, setStatus] = useState(typeof window !== "undefined" && window.Globe ? "ready" : "loading"); // loading | ready | failed
+
+      // Poll for globe.gl arriving on window (script may resolve a tick after React mounts)
+      useEffect(() => {
+        if (status !== "loading") return;
+        let tries = 0;
+        const t = setInterval(() => {
+          if (typeof window !== "undefined" && window.Globe) {
+            clearInterval(t);
+            setStatus("ready");
+          } else if (++tries > 60) { // ~6s
+            clearInterval(t);
+            setStatus("failed");
+            console.warn("[GlobeView] globe.gl failed to load — falling back to 2D map.");
+          }
+        }, 100);
+        return () => clearInterval(t);
+      }, [status]);
+
+      useEffect(() => {
+        if (status !== "ready") return;
+        if (!ref.current || !window.Globe) return;
+
+        const arcsData = regions.map(r => {
+          const c = REGION_COORDS[r.name] || { lat: 0, lng: 0 };
+          return {
+            startLat: ZURICH_HQ.lat, startLng: ZURICH_HQ.lng,
+            endLat: c.lat, endLng: c.lng,
+            color: r.trend >= 0 ? "#d4ff3a" : "#fda4af",
+            score: r.score
+          };
+        });
+
+        const g = window.Globe()(ref.current)
+          .backgroundColor("#0a0a0a")
+          .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-dark.jpg")
+          .showAtmosphere(true)
+          .atmosphereColor("#d4ff3a")
+          .atmosphereAltitude(0.18)
+          // Country polygons populated asynchronously below — start with empty so the globe paints first
+          .polygonsData([])
+          .polygonAltitude(0.005)
+          .polygonCapColor(() => "rgba(255,255,255,0.04)")
+          .polygonSideColor(() => "rgba(255,255,255,0.02)")
+          .polygonStrokeColor(() => "rgba(255,255,255,0.05)")
+          .polygonsTransitionDuration(900)
+          .onPolygonHover(p => { if (ref.current) ref.current.style.cursor = p ? "pointer" : "grab"; })
+          .arcsData(arcsData)
+          .arcColor(d => [d.color + "00", d.color, d.color + "00"])
+          .arcStroke(0.5)
+          .arcDashLength(0.4)
+          .arcDashGap(0.6)
+          .arcDashAnimateTime(d => Math.max(1500, 4500 - d.score * 30))
+          .arcAltitudeAutoScale(0.4)
+          .htmlElementsData([{ ...ZURICH_HQ }])
+          .htmlElement(() => {
+            const wrapper = document.createElement("div");
+            wrapper.style.pointerEvents = "none";
+            wrapper.innerHTML = `
+              <div style="position:relative;width:10px;height:10px">
+                <div style="position:absolute;inset:0;border-radius:50%;background:#d4ff3a;box-shadow:0 0 14px 4px #d4ff3acc"></div>
+                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;border:1px solid #d4ff3a66;animation:pulse-dot 2s ease-in-out infinite"></div>
+                <div style="position:absolute;left:14px;top:-2px;color:#d4ff3a;font-size:9px;font-family:Inter,sans-serif;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;text-shadow:0 0 8px rgba(0,0,0,0.8)">On HQ · Zurich</div>
+              </div>`;
+            return wrapper;
+          });
+
+        // Load country polygons asynchronously and colour them by region
+        let polygonsActive = true;
+        const nameOf = (f) => {
+          const p = f.properties || {};
+          return (p.name || p.NAME || p.ADMIN || "").toString();
+        };
+        fetchCountriesGeoJSON().then(geo => {
+          if (!polygonsActive) return;
+          const features = (geo.features || []).filter(f => nameOf(f) !== "Antarctica");
+          const litCount = features.filter(f => COUNTRY_TO_REGION[nameOf(f).toLowerCase()]).length;
+          console.log(`[GlobeView] loaded ${features.length} country features · ${litCount} mapped to On regions`);
+          if (litCount === 0) {
+            console.warn("[GlobeView] no countries matched. Sample feature properties:", features[0] && features[0].properties);
+          }
+          const regionFor = (f) => {
+            const name = COUNTRY_TO_REGION[nameOf(f).toLowerCase()];
+            if (!name) return null;
+            return regions.find(r => r.name === name) || null;
+          };
+          g.polygonsData(features)
+            .polygonAltitude(f => regionFor(f) ? 0.025 : 0.006)
+            .polygonCapColor(f => {
+              const r = regionFor(f);
+              if (!r) return "rgba(255,255,255,0.04)";
+              const base = r.trend >= 0 ? "#d4ff3a" : "#fda4af";
+              const intensity = Math.min(1, 0.55 + (r.score / 100) * 0.45);
+              const a = Math.round(intensity * 255).toString(16).padStart(2, "0");
+              return base + a;
+            })
+            .polygonSideColor(f => {
+              const r = regionFor(f);
+              if (!r) return "rgba(0,0,0,0)";
+              return (r.trend >= 0 ? "#d4ff3a" : "#fda4af") + "55";
+            })
+            .polygonStrokeColor(f => regionFor(f) ? "#0a0a0a" : "rgba(255,255,255,0.08)")
+            .polygonLabel(f => {
+              const r = regionFor(f);
+              const country = nameOf(f);
+              if (!r) {
+                return `<div style="background:#131313;border:1px solid #2a2a2a;padding:6px 10px;border-radius:6px;color:#8a8a8a;font-family:Inter,sans-serif;font-size:10px">${country}<br/><span style="color:#525252;font-size:9px">No active On presence</span></div>`;
+              }
+              return `<div style="background:#131313;border:1px solid #2a2a2a;padding:8px 10px;border-radius:6px;color:#fff;font-family:Inter,sans-serif;font-size:11px;min-width:170px">
+                <div style="text-transform:uppercase;letter-spacing:0.18em;color:#8a8a8a;font-size:9px;margin-bottom:2px">${country} · ${r.name}</div>
+                <div style="display:flex;gap:8px;align-items:baseline"><span style="font-size:18px;font-weight:600">${r.score}</span><span style="color:${r.trend>=0?"#86efac":"#fda4af"};font-size:10px">${r.trend>0?"+":""}${r.trend}</span></div>
+                <div style="color:#8a8a8a;font-size:10px;margin-top:4px">${r.revenuePct}% rev · ${r.revenueGrowth}</div>
+                <div style="color:#525252;font-size:9px;margin-top:4px">${(REGION_COORDS[r.name] && REGION_COORDS[r.name].anchor) || ""}</div>
+                <div style="color:#525252;font-size:9px;margin-top:6px;border-top:1px solid #1f1f1f;padding-top:4px">Click to drill →</div>
+              </div>`;
+            })
+            .onPolygonClick(f => {
+              const r = regionFor(f);
+              if (r && onSelectRegion) onSelectRegion(r.name);
+            });
+        }).catch(err => {
+          console.warn("[GlobeView] country GeoJSON fetch failed:", err);
+        });
+
+        const controls = g.controls();
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.4;
+        controls.enableZoom = false;
+        g.pointOfView({ lat: 28, lng: 6, altitude: 2.4 }, 0);
+
+        const el = ref.current;
+        const pause  = () => { controls.autoRotate = false; };
+        const resume = () => { controls.autoRotate = true;  };
+        el.addEventListener("mouseenter", pause);
+        el.addEventListener("mouseleave", resume);
+
+        // Resize handling — globe.gl listens to window resize, but we need to set initial size
+        const resizeToParent = () => {
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) g.width(rect.width).height(rect.height);
+        };
+        // Defer first sizing one frame so the layout has settled
+        const raf = requestAnimationFrame(resizeToParent);
+        const ro = (typeof ResizeObserver !== "undefined") ? new ResizeObserver(resizeToParent) : null;
+        if (ro) ro.observe(el);
+
+        globeRef.current = g;
+        return () => {
+          polygonsActive = false;
+          cancelAnimationFrame(raf);
+          el.removeEventListener("mouseenter", pause);
+          el.removeEventListener("mouseleave", resume);
+          if (ro) ro.disconnect();
+          try { if (g._destructor) g._destructor(); } catch (e) {}
+          if (el) el.innerHTML = "";
+        };
+      }, [status, regions, onSelectRegion]);
+
+      const wrapperStyle = fill
+        ? { height: "100%", minHeight: height, position: "relative" }
+        : { height, position: "relative" };
+
+      // Fallback after a hard load timeout
+      if (status === "failed") {
+        return (
+          <div className="rounded-xl border border-neutral-900 bg-neutral-950 flex items-center justify-center" style={wrapperStyle}>
+            <GlobeViz regions={regions} onSelectRegion={onSelectRegion} />
+          </div>
+        );
+      }
+
+      return (
+        <div className="rounded-xl overflow-hidden border border-neutral-900 bg-[#0a0a0a]" style={wrapperStyle}>
+          <div ref={ref} style={{ width: "100%", height: "100%", cursor: "grab" }} />
+          {status === "loading" && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center">
+                <div className="w-6 h-6 border border-neutral-700 border-t-[#d4ff3a] rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Initialising globe…</p>
+              </div>
+            </div>
+          )}
+          {status === "ready" && (
+            <>
+              <div className="absolute top-3 left-3 pointer-events-none">
+                <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">Narrative reach</p>
+                <p className="text-[10px] text-neutral-400 mt-0.5">Origin: Zurich · 5 regions · {regions.length} active arcs</p>
+              </div>
+              <div className="absolute bottom-3 right-3 flex items-center gap-3 text-[9px] uppercase tracking-widest text-neutral-500 pointer-events-none">
+                <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#d4ff3a" }} />Trending</div>
+                <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: "#fda4af" }} />Cooling</div>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ============================================================
+    // GLOBE VISUALIZATION (legacy 2D fallback — used by GlobeView when globe.gl is unavailable)
     // ============================================================
 
     function GlobeViz({ regions, onSelectRegion }) {
@@ -2338,50 +2598,59 @@
             </div>
           </div>
 
-          {/* Regional Message-Landing snapshot */}
+          {/* Regional Message-Landing snapshot — globe + compact tile list */}
           <div>
             <SectionHeader title="Regional Message Landing" icon="globe"
-              rightContent={<span className="text-[10px] text-neutral-600 uppercase tracking-widest">Top + bottom pillar per region</span>} />
-            <div className="grid grid-cols-5 gap-3">
-              {REGIONS.map(r => {
-                const land = REGIONAL_MESSAGE_LANDING[r.name] || {};
-                const entries = Object.entries(land).map(([pid, v]) => ({ pid, score: v.score }));
-                const top = entries.length ? entries.reduce((a, b) => a.score >= b.score ? a : b) : null;
-                const bot = entries.length ? entries.reduce((a, b) => a.score <= b.score ? a : b) : null;
-                const topPillar = top && PILLARS.find(p => p.id === top.pid);
-                const botPillar = bot && PILLARS.find(p => p.id === bot.pid);
-                return (
-                  <Card key={r.name} hover onClick={() => onSelectRegion(r.name)} className="!p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[11px] text-neutral-300 font-medium">{r.name}</p>
-                      <span className="text-[10px] text-neutral-600 tabular-nums">{r.revenuePct}% rev · {r.revenueGrowth}</span>
-                    </div>
-                    <div className="flex items-baseline gap-2 mb-2">
-                      <span className="font-serif text-2xl text-white tabular-nums">{r.score}</span>
-                      <TrendIndicator trend={r.trend} />
-                    </div>
-                    <div className="mb-3">
-                      <ScoreBreakdownStrip entityKey={r.name} compact />
-                    </div>
-                    {topPillar && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="w-1 h-1 rounded-full bg-emerald-400" />
-                        <span className="text-[10px] uppercase tracking-widest text-neutral-500">Strongest</span>
-                        <span className="text-[10px] flex-1 truncate" style={{ color: topPillar.color }}>{topPillar.name}</span>
-                        <span className="text-[10px] text-neutral-300 tabular-nums">{top.score}</span>
+              rightContent={<span className="text-[10px] text-neutral-600 uppercase tracking-widest">Hover the globe · click any region to drill</span>} />
+            <div className="grid grid-cols-5 gap-4 items-stretch">
+              <div className="col-span-3 h-full">
+                <GlobeView regions={REGIONS} onSelectRegion={onSelectRegion} height={420} fill />
+              </div>
+              <div className="col-span-2 space-y-2">
+                {REGIONS.map(r => {
+                  const land = REGIONAL_MESSAGE_LANDING[r.name] || {};
+                  const entries = Object.entries(land).map(([pid, v]) => ({ pid, score: v.score }));
+                  const top = entries.length ? entries.reduce((a, b) => a.score >= b.score ? a : b) : null;
+                  const bot = entries.length ? entries.reduce((a, b) => a.score <= b.score ? a : b) : null;
+                  const topPillar = top && PILLARS.find(p => p.id === top.pid);
+                  const botPillar = bot && PILLARS.find(p => p.id === bot.pid);
+                  return (
+                    <Card key={r.name} hover onClick={() => onSelectRegion(r.name)} className="!p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[12px] text-white font-medium truncate">{r.name}</p>
+                            <div className="flex items-baseline gap-1.5 flex-shrink-0">
+                              <span className="font-serif text-lg text-white tabular-nums">{r.score}</span>
+                              <TrendIndicator trend={r.trend} />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-neutral-600 tabular-nums mb-2">{r.revenuePct}% rev · {r.revenueGrowth}</p>
+                          <ScoreBreakdownStrip entityKey={r.name} compact />
+                          <div className="mt-2 space-y-0.5">
+                            {topPillar && (
+                              <div className="flex items-center gap-1.5 text-[10px]">
+                                <span className="text-emerald-400">▲</span>
+                                <span className="text-neutral-500 uppercase tracking-widest">Top</span>
+                                <span className="flex-1 truncate" style={{ color: topPillar.color }}>{topPillar.name}</span>
+                                <span className="text-neutral-300 tabular-nums">{top.score}</span>
+                              </div>
+                            )}
+                            {botPillar && (
+                              <div className="flex items-center gap-1.5 text-[10px]">
+                                <span className="text-rose-400">▼</span>
+                                <span className="text-neutral-500 uppercase tracking-widest">Bot</span>
+                                <span className="flex-1 truncate" style={{ color: botPillar.color }}>{botPillar.name}</span>
+                                <span className="text-neutral-300 tabular-nums">{bot.score}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    {botPillar && (
-                      <div className="flex items-center gap-2">
-                        <span className="w-1 h-1 rounded-full bg-rose-400" />
-                        <span className="text-[10px] uppercase tracking-widest text-neutral-500">Weakest</span>
-                        <span className="text-[10px] flex-1 truncate" style={{ color: botPillar.color }}>{botPillar.name}</span>
-                        <span className="text-[10px] text-neutral-300 tabular-nums">{bot.score}</span>
-                      </div>
-                    )}
-                  </Card>
-                );
-              })}
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
