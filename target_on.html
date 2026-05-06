@@ -820,6 +820,135 @@
     };
 
     // ============================================================
+    // SCORE FORMULA + COMPONENT_SCORES
+    // Composite Score = w_sentiment·Sentiment + w_virality·Virality + w_spread·Spread
+    // Each entity that has a visible score also has a component breakdown.
+    // ============================================================
+
+    const SCORE_FORMULA = {
+      weights: { sentiment: 0.40, virality: 0.30, spread: 0.30 },
+      description: "Score = 0.40·Sentiment + 0.30·Virality + 0.30·Spread",
+      componentDefs: {
+        sentiment: "Tone-graded across all signals in scope, normalised 0–100.",
+        virality:  "Rate of change of topically-relevant mentions over the window — combines 30d delta, 7d delta, peak amplitude and half-life.",
+        spread:    "Diversity of where the narrative shows up — across source-types, regions and demographics. High spread = many channels and audiences carry it; low spread = it lives in one bubble."
+      }
+    };
+
+    // Compact factory for component scores. Reasonable defaults so per-entity overrides stay tight.
+    const _mc = (s, v, p, o = {}) => ({
+      sentiment: {
+        score: s,
+        distribution: o.dist || { positive: Math.max(0, Math.min(95, s - 16)), neutral: 26, negative: Math.max(0, 100 - Math.max(0, Math.min(95, s - 16)) - 26) },
+        byType:       o.byType || { news: clamp(s + 4), social: clamp(s - 4), forum: clamp(s - 12), review: clamp(s - 8), chatbot: clamp(s + 2), earned: clamp(s + 6), owned: clamp(s + 10) }
+      },
+      virality: {
+        score: v,
+        delta30d: o.d30 != null ? o.d30 : (v - 60),
+        delta7d:  o.d7  != null ? o.d7  : Math.round((v - 68) / 2),
+        peakDay: o.peak || "Apr 21 · Boston Marathon",
+        halfLifeDays: o.hl || 7.2,
+        timeline: o.tl || [Math.max(0,v-18), Math.max(0,v-15), Math.max(0,v-12), Math.max(0,v-8), Math.max(0,v-4), v, clamp(v+3), clamp(v+5), clamp(v+2), v, clamp(v-1), v]
+      },
+      spread: {
+        score: p,
+        sourceTypeDiversity: o.std != null ? o.std : Math.min(0.95, p / 100),
+        regionDiversity:     o.rd  != null ? o.rd  : Math.min(0.95, p / 100 - 0.05),
+        demoDiversity:       o.dd  != null ? o.dd  : Math.min(0.95, p / 100 + 0.02),
+        sourceTypeBars: o.stB || { news: clamp(p + 2), social: clamp(p - 4), forum: clamp(p - 10), review: clamp(p - 6), chatbot: clamp(p + 4), earned: clamp(p), owned: clamp(p - 2) },
+        regionBars:     o.rB  || { "North America": clamp(p + 4), "Europe": clamp(p + 2), "Asia-Pacific": clamp(p), "Middle East": clamp(p - 12), "Latin America": clamp(p - 18) },
+        demoBars:       o.dB  || { "World-class Athletes": clamp(p + 2), "Serious Runners": clamp(p), "Fitness Enthusiasts": clamp(p - 4), "Urban Professionals": clamp(p + 6), "Gen Z Sports Fans": clamp(p + 8) }
+      }
+    });
+    function clamp(v) { return Math.max(0, Math.min(100, Math.round(v))); }
+
+    // Per-entity component scores. Calibrated so 0.40·S + 0.30·V + 0.30·P ≈ the entity's existing aggregate score.
+    const COMPONENT_SCORES = {
+      // Overall
+      overall:        _mc(78, 80, 70, { d30: +24, d7: +12, peak: "Apr 21 · Boston Marathon", hl: 6.4 }),
+
+      // Pillars
+      performance:    _mc(82, 78, 76, { d30: +14, d7: +8,  peak: "Apr 21 · Obiri wins Boston",       hl: 8.4, dist:{positive:68,neutral:22,negative:10} }),
+      innovation:     _mc(80, 92, 80, { d30: +44, d7: +22, peak: "Mar 6 · Wired LightSpray feature", hl: 5.6, dist:{positive:72,neutral:20,negative:8 } }),
+      design:         _mc(92, 86, 84, { d30: +30, d7: +18, peak: "Apr 9 · Zendaya × Cloudzone Moon", hl: 4.8, dist:{positive:84,neutral:12,negative:4 } }),
+      business:       _mc(84, 72, 72, { d30: +12, d7: +4,  peak: "Mar 11 · FY25 results CHF 3B",     hl: 9.0, dist:{positive:74,neutral:20,negative:6 },
+                         stB: { news: 92, social: 38, forum: 28, review: 32, chatbot: 86, earned: 80, owned: 90 } }),
+      culture:        _mc(88, 92, 78, { d30: +28, d7: +14, peak: "Feb 8 · 'Soft Wins' Super Bowl",   hl: 5.2, dist:{positive:78,neutral:16,negative:6 } }),
+      sustainability: _mc(58, 60, 78, { d30: -4,  d7: -2,  peak: "Feb 14 · Greenpeace report",        hl: 11.4, dist:{positive:46,neutral:30,negative:24} }),
+
+      // Top narratives (others fall back to pillar-level breakdown via getComponents helper)
+      "n-perf-obiri-boston":   _mc(94, 96, 88, { d30: +220, d7: +180, peak: "Apr 21 · Boston Marathon",      hl: 4.2, dist:{positive:88,neutral:10,negative:2 } }),
+      "n-perf-helion-durability": _mc(34, 60, 56, { d30: +18, d7: +6,  peak: "Mar 19 · r/RunningShoeGeeks viral", hl: 9.2, dist:{positive:14,neutral:24,negative:62}, stB:{news:38,social:46,forum:84,review:62,chatbot:30,earned:24,owned:18} }),
+      "n-inn-lightspray-moat": _mc(86, 96, 84, { d30: +180, d7: +90, peak: "Mar 6 · Wired feature",         hl: 5.8, dist:{positive:80,neutral:14,negative:6 } }),
+      "n-inn-techbro-meme":    _mc(28, 78, 64, { d30: +96, d7: +44, peak: "Apr 9 · @benharrisruns 14M view", hl: 3.6, dist:{positive:18,neutral:30,negative:52}, stB:{news:18,social:88,forum:54,review:24,chatbot:32,earned:14,owned:8 } }),
+      "n-des-zendaya-jonze":   _mc(96, 94, 86, { d30: +260, d7: +140, peak: "Apr 9 · Cloudzone Moon launch", hl: 4.0, dist:{positive:92,neutral:6, negative:2 } }),
+      "n-des-cloud5-laces":    _mc(20, 64, 58, { d30: +12, d7: +4,  peak: "Mar 22 · Trustpilot wave",       hl: 14.0, dist:{positive:8, neutral:22,negative:70}, stB:{news:18,social:42,forum:64,review:96,chatbot:30,earned:16,owned:8 } }),
+      "n-biz-fy25-3b-cross":   _mc(94, 82, 64, { d30: +60, d7: +20, peak: "Mar 11 · FY25 earnings call",    hl: 7.8, dist:{positive:88,neutral:10,negative:2 }, stB:{news:96,social:42,forum:28,review:32,chatbot:86,earned:88,owned:94} }),
+      "n-biz-apac-momentum":   _mc(90, 84, 60, { d30: +52, d7: +18, peak: "Mar 13 · Bloomberg APAC piece",  hl: 8.4, dist:{positive:84,neutral:12,negative:4 }, stB:{news:90,social:38,forum:24,review:28,chatbot:78,earned:82,owned:88} }),
+      "n-biz-ppm-vs-hoka":     _mc(38, 64, 70, { d30: +28, d7: +8,  peak: "Feb 24 · RunRepeat analysis",    hl: 12.0, dist:{positive:18,neutral:28,negative:54}, stB:{news:42,social:60,forum:80,review:88,chatbot:62,earned:32,owned:14} }),
+      "n-cul-soft-wins-sb":    _mc(92, 96, 84, { d30: +320, d7: +180, peak: "Feb 8 · Super Bowl LX",         hl: 4.4, dist:{positive:84,neutral:12,negative:4 } }),
+      "n-cul-techbro-vest":    _mc(28, 76, 62, { d30: +60, d7: +28, peak: "Apr 6 · TikTok cluster peak",    hl: 4.8, dist:{positive:18,neutral:32,negative:50}, stB:{news:24,social:88,forum:60,review:30,chatbot:42,earned:18,owned:6 } }),
+      "n-sus-cyclon-resale":   _mc(82, 76, 78, { d30: +84, d7: +24, peak: "Mar 17 · WWD launch coverage",    hl: 7.2, dist:{positive:74,neutral:20,negative:6 } }),
+      "n-sus-greenpeace-12pct":_mc(28, 70, 84, { d30: +36, d7: +14, peak: "Feb 14 · Greenpeace report",     hl: 12.4, dist:{positive:14,neutral:24,negative:62} }),
+
+      // Regions
+      "North America":    _mc(82, 80, 78, { d30: +18, d7: +8,  peak: "Feb 8 · Super Bowl",            hl: 5.4, rB:{ "North America": 96, "Europe": 30, "Asia-Pacific": 28, "Middle East": 18, "Latin America": 22 } }),
+      "Europe":           _mc(80, 76, 78, { d30: +14, d7: +6,  peak: "Mar 6 · Wired LightSpray",      hl: 7.0, rB:{ "North America": 24, "Europe": 96, "Asia-Pacific": 26, "Middle East": 22, "Latin America": 16 } }),
+      "Asia-Pacific":     _mc(76, 88, 70, { d30: +44, d7: +18, peak: "Mar 13 · Bloomberg APAC",       hl: 6.6, rB:{ "North America": 22, "Europe": 24, "Asia-Pacific": 96, "Middle East": 18, "Latin America": 14 } }),
+      "Middle East":      _mc(64, 60, 64, { d30: +6,  d7: +2,  peak: "Mar — Dubai pop-up",            hl: 9.4, rB:{ "North America": 18, "Europe": 22, "Asia-Pacific": 22, "Middle East": 96, "Latin America": 12 } }),
+      "Latin America":    _mc(60, 64, 56, { d30: +10, d7: +4,  peak: "Mar — Brazil TikTok",           hl: 8.2, rB:{ "North America": 14, "Europe": 12, "Asia-Pacific": 16, "Middle East": 8,  "Latin America": 96 } }),
+
+      // Countries
+      US: _mc(82, 84, 76, { d30: +24, d7: +12, peak: "Feb 8 · Super Bowl",     hl: 5.2 }),
+      UK: _mc(80, 78, 80, { d30: +14, d7: +6,  peak: "Apr 9 · Zendaya × On",   hl: 6.6 }),
+      DE: _mc(86, 76, 84, { d30: +12, d7: +4,  peak: "Mar 6 · Wired Wired",    hl: 7.4 }),
+      FR: _mc(76, 72, 76, { d30: +10, d7: +4,  peak: "Mar 28 · Cannes Lions",  hl: 7.8 }),
+      CN: _mc(84, 90, 72, { d30: +52, d7: +24, peak: "Mar 13 · Shenzhen MixC", hl: 5.6 }),
+      JP: _mc(82, 78, 80, { d30: +16, d7: +6,  peak: "Mar — Tokyo OAC event",  hl: 7.0 }),
+      BR: _mc(64, 70, 56, { d30: +14, d7: +6,  peak: "Mar — TikTok Brasil",    hl: 6.4 }),
+
+      // Generative engines
+      "chatbot:chatgpt": _mc(80, 82, 76, { d30: +20, d7: +8,  peak: "Apr 21 · Boston response",  hl: 6.0 }),
+      "chatbot:claude":  _mc(78, 78, 76, { d30: +14, d7: +6,  peak: "Mar 6 · LightSpray response",hl: 6.6 }),
+      "chatbot:gemini":  _mc(74, 76, 76, { d30: +10, d7: +4,  peak: "Mar 11 · FY25 response",    hl: 7.4 }),
+      "chatbot:perplex": _mc(74, 74, 76, { d30: +12, d7: +6,  peak: "Mar 6 · Wired citation",    hl: 7.2 }),
+
+      // Social platforms
+      "social:instagram": _mc(86, 80, 88, { d30: +18, d7: +8,  peak: "Apr 9 · Zendaya × On post", hl: 5.4 }),
+      "social:tiktok":    _mc(64, 88, 76, { d30: +52, d7: +24, peak: "Apr 9 · Cloudzone Moon",    hl: 3.8 }),
+      "social:x":         _mc(72, 64, 80, { d30: +12, d7: +4,  peak: "Mar 11 · FY25 thread",     hl: 6.8 }),
+      "social:reddit":    _mc(38, 80, 72, { d30: +30, d7: +16, peak: "Mar 19 · Helion thread",   hl: 8.6, dist:{positive:24,neutral:28,negative:48} }),
+
+      // Products (so the InfoButton on a product card has data)
+      "product:Cloudboom Strike LightSpray": _mc(92, 96, 78, { d30: +200, d7: +140, peak: "Apr 21 · Boston",      hl: 4.6 }),
+      "product:Cloudzone Moon":              _mc(94, 92, 82, { d30: +260, d7: +160, peak: "Apr 9 · Launch",       hl: 4.2 }),
+      "product:Cloudmonster 3":              _mc(86, 80, 80, { d30: +28, d7: +12,   peak: "Mar 5 · Dezeen Award", hl: 7.0 }),
+      "product:Cloud 5":                     _mc(80, 70, 84, { d30: +12, d7: +4,    peak: "Feb 12 · GQ list",     hl: 9.4 }),
+      "product:Cloudflow 4":                 _mc(76, 72, 64, { d30: +6,  d7: +2,    peak: "Mar 11 · Tempo review",hl: 8.2 }),
+      "product:Cloudsurfer":                 _mc(74, 76, 60, { d30: +18, d7: +6,    peak: "Feb — Tokyo event",    hl: 7.8 }),
+      "product:Cloudultra":                  _mc(74, 60, 56, { d30: +2,  d7: 0,     peak: "Mar — UTMB qualifier", hl: 11.0 }),
+      "product:Cloudswift":                  _mc(70, 64, 64, { d30: +6,  d7: +2,    peak: "Mar — Wirecutter",     hl: 9.6 })
+    };
+
+    // Lookup with graceful fallbacks. Narratives without explicit component data fall back to their pillar's components.
+    function getComponents(entityKey) {
+      if (COMPONENT_SCORES[entityKey]) return COMPONENT_SCORES[entityKey];
+      const n = NARRATIVES.find(x => x.id === entityKey);
+      if (n && COMPONENT_SCORES[n.pillarId]) return COMPONENT_SCORES[n.pillarId];
+      return COMPONENT_SCORES.overall;
+    }
+
+    // Recompose composite from component scores under arbitrary weights. Used by the live slider.
+    function recomposeScore(entityKey, weights) {
+      const w = weights || SCORE_FORMULA.weights;
+      const c = getComponents(entityKey);
+      if (!c) return null;
+      const sum = w.sentiment + w.virality + w.spread;
+      const ws = w.sentiment / sum, wv = w.virality / sum, wp = w.spread / sum;
+      return Math.round(ws * c.sentiment.score + wv * c.virality.score + wp * c.spread.score);
+    }
+
+    // ============================================================
     // SOURCES — atomic post-level dataset (referenced from PILLAR_SIGNALS, NARRATIVES, SOCIAL_PERCEPTION.topThreads)
     // Each signal in the UI links to a SOURCES entry, opening a drawer with title, excerpt, comments, link.
     // ============================================================
@@ -1218,6 +1347,34 @@
     }
 
     // ============================================================
+    // SCORE BREAKDOWN STRIP — compact inline 3-bar visual: Sentiment / Virality / Spread
+    // ============================================================
+
+    function ScoreBreakdownStrip({ entityKey, onOpenBreakdown, label, compact = false, accentColor }) {
+      const c = getComponents(entityKey);
+      if (!c) return null;
+      const rows = [
+        { id: "sentiment", abbr: "SENT", score: c.sentiment.score, color: "#a7f3d0" },
+        { id: "virality",  abbr: "VIRA", score: c.virality.score,  color: "#d4ff3a" },
+        { id: "spread",    abbr: "SPRD", score: c.spread.score,    color: "#c4b5fd" }
+      ];
+      const handler = onOpenBreakdown ? (e) => { e.stopPropagation(); onOpenBreakdown({ kind: "breakdown", entityKey, label }); } : null;
+      return (
+        <div onClick={handler} className={`${handler ? 'cursor-pointer hover:opacity-100 opacity-90' : ''} ${compact ? 'space-y-0.5' : 'space-y-1'}`}>
+          {rows.map(r => (
+            <div key={r.id} className="flex items-center gap-2" title={SCORE_FORMULA.componentDefs[r.id]}>
+              <span className={`text-[9px] uppercase tracking-widest text-neutral-500 ${compact ? 'w-8' : 'w-10'} flex-shrink-0`}>{r.abbr}</span>
+              <div className={`flex-1 bg-neutral-900 rounded-full overflow-hidden ${compact ? 'h-0.5' : 'h-1'}`}>
+                <div className="h-full rounded-full animate-bar" style={{ width: r.score + '%', background: accentColor || r.color }} />
+              </div>
+              <span className="text-[9px] text-neutral-300 tabular-nums w-6 text-right flex-shrink-0">{r.score}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // ============================================================
     // NARRATIVE CARD
     // ============================================================
 
@@ -1241,6 +1398,9 @@
             </div>
           </div>
           <p className="font-serif text-[15px] text-white leading-snug mb-2">{narrative.title}</p>
+          <div className="mb-2">
+            <ScoreBreakdownStrip entityKey={narrative.id} compact />
+          </div>
           {!compact && narrative.thesis && (
             <p className="text-[12.5px] text-neutral-400 leading-relaxed line-clamp-3 mb-3">{narrative.thesis}</p>
           )}
@@ -1882,7 +2042,10 @@
                 <div className="mt-3 flex items-center gap-2">
                   <span className="text-[10px] uppercase tracking-widest text-neutral-500">Overall</span>
                   <TrendIndicator trend={OVERALL_TREND} />
-                  <InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope="Overall narrative penetration score" />
+                  <InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: "overall", label: "Overall narrative penetration" })} scope="Overall narrative penetration" />
+                </div>
+                <div className="mt-3 w-full max-w-[180px]">
+                  <ScoreBreakdownStrip entityKey="overall" compact onOpenBreakdown={onOpenDrawer} label="Overall narrative penetration" />
                 </div>
               </div>
               <div className="col-span-3">
@@ -1917,7 +2080,7 @@
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] uppercase tracking-widest" style={{ color: "#d4ff3a" }}>Sentinel Synthesis · {DATE_RANGE}</p>
-                  <InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope="Sentinel synthesis methodology" />
+                  <InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: "overall", label: "Overall narrative penetration" })} scope="Sentinel synthesis · how it is computed" />
                 </div>
                 <p className="text-[14px] text-neutral-200 leading-relaxed text-balance">{AI_NARRATIVES.landing}</p>
               </div>
@@ -1951,12 +2114,12 @@
                       <div className="flex items-baseline gap-2">
                         <span className="font-serif text-[34px] text-white tabular-nums leading-none">{p.score}</span>
                         <span className="text-[11px] text-neutral-500">/ 100</span>
-                        <InfoButton className="ml-2" onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope={`${p.name} pillar score`} />
+                        <InfoButton className="ml-2" onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: p.id, label: `${p.name} pillar` })} scope={`${p.name} pillar score`} />
                       </div>
                       <TrendIndicator trend={p.trend} size="lg" />
                     </div>
-                    <div className="bg-neutral-900 rounded-full h-1 overflow-hidden mb-4">
-                      <div className="h-full rounded-full animate-bar" style={{ width: `${p.score}%`, background: p.color }} />
+                    <div className="mb-4">
+                      <ScoreBreakdownStrip entityKey={p.id} compact />
                     </div>
                     {/* Top supporting + dissonant narrative chips */}
                     <div className="space-y-1.5">
@@ -1999,9 +2162,12 @@
                       <p className="text-[11px] text-neutral-300 font-medium">{r.name}</p>
                       <span className="text-[10px] text-neutral-600 tabular-nums">{r.revenuePct}% rev · {r.revenueGrowth}</span>
                     </div>
-                    <div className="flex items-baseline gap-2 mb-3">
+                    <div className="flex items-baseline gap-2 mb-2">
                       <span className="font-serif text-2xl text-white tabular-nums">{r.score}</span>
                       <TrendIndicator trend={r.trend} />
+                    </div>
+                    <div className="mb-3">
+                      <ScoreBreakdownStrip entityKey={r.name} compact />
                     </div>
                     {topPillar && (
                       <div className="flex items-center gap-2 mb-1">
@@ -2139,7 +2305,10 @@
                 </div>
                 <div className="flex items-center gap-2">
                   <TrendIndicator trend={pillar.trend} size="lg" />
-                  <InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope={`${pillar.name} pillar score`} />
+                  <InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: pillar.id, label: `${pillar.name} pillar` })} scope={`${pillar.name} pillar score`} />
+                </div>
+                <div className="w-[200px] mt-2">
+                  <ScoreBreakdownStrip entityKey={pillar.id} compact onOpenBreakdown={onOpenDrawer} label={`${pillar.name} pillar`} />
                 </div>
               </div>
             </div>
@@ -2156,7 +2325,7 @@
           {/* 12-month trend */}
           <Card className="!p-5">
             <SectionHeader title={`12-Month Trend · ${pillar.name}`} icon="activity"
-              rightContent={<InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope={`${pillar.name} pillar trend computation`} />} />
+              rightContent={<InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: pillar.id, label: `${pillar.name} pillar` })} scope={`${pillar.name} pillar score`} />} />
             <TrendChart data={trend} color={pillar.color} height={160} />
           </Card>
 
@@ -2286,7 +2455,7 @@
                 </div>
                 <div className="flex items-center gap-2">
                   <TrendIndicator trend={prod.trend} size="lg" />
-                  <InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope={`${productName} aggregate score`} />
+                  <InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: `product:${productName}`, label: productName })} scope={`${productName} aggregate score`} />
                 </div>
               </div>
             </div>
@@ -2492,7 +2661,7 @@
               <span className="text-[10px] text-neutral-600">/100</span>
             </div>
             <TrendIndicator trend={n.trend} />
-            <InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope={`${n.title} · narrative penetration`} />
+            <InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: n.id, label: n.title })} scope={`${n.title} · narrative penetration`} />
           </div>
           <p className="text-[13px] text-neutral-300 leading-relaxed mb-5">{n.thesis}</p>
 
@@ -2535,12 +2704,291 @@
       );
     }
 
+    function ScoreBreakdownDrawer({ payload, depth, onClose, onPop, onOpenDrawer }) {
+      const entityKey = payload.entityKey || "overall";
+      const label = payload.label || "Overall narrative penetration";
+      const c = getComponents(entityKey);
+      const [weights, setWeights] = useState(SCORE_FORMULA.weights);
+      const [openPanel, setOpenPanel] = useState("sentiment");
+
+      const composite = recomposeScore(entityKey, weights) || 0;
+      const baselineComposite = recomposeScore(entityKey, SCORE_FORMULA.weights) || 0;
+      const drift = composite - baselineComposite;
+
+      function setWeight(id, val) {
+        const v = Math.max(0, Math.min(1, val));
+        const others = ["sentiment","virality","spread"].filter(k => k !== id);
+        const remaining = Math.max(0.05, 1 - v);
+        const otherSum = weights[others[0]] + weights[others[1]] || 0.0001;
+        const next = { ...weights, [id]: v };
+        next[others[0]] = remaining * (weights[others[0]] / otherSum);
+        next[others[1]] = remaining * (weights[others[1]] / otherSum);
+        setWeights({
+          sentiment: Math.round(next.sentiment * 100) / 100,
+          virality:  Math.round(next.virality  * 100) / 100,
+          spread:    Math.round(next.spread    * 100) / 100
+        });
+      }
+      function resetWeights() { setWeights(SCORE_FORMULA.weights); }
+
+      const components = [
+        { id: "sentiment", abbr: "SENT", name: "Sentiment", score: c.sentiment.score, color: "#a7f3d0", weight: weights.sentiment },
+        { id: "virality",  abbr: "VIRA", name: "Virality",  score: c.virality.score,  color: "#d4ff3a", weight: weights.virality  },
+        { id: "spread",    abbr: "SPRD", name: "Spread",    score: c.spread.score,    color: "#c4b5fd", weight: weights.spread    }
+      ];
+
+      const formula = `${composite} = ${weights.sentiment.toFixed(2)}·${c.sentiment.score} + ${weights.virality.toFixed(2)}·${c.virality.score} + ${weights.spread.toFixed(2)}·${c.spread.score}`;
+
+      return (
+        <DrawerShell depth={depth} onClose={onClose} onPop={onPop} breadcrumb={["Score breakdown", label]} width={520}>
+          {/* Header — composite + formula */}
+          <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1">Score breakdown</p>
+          <h2 className="font-serif text-[22px] text-white leading-tight tracking-tight mb-3">{label}</h2>
+          <div className="flex items-end gap-4 mb-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-0.5">Composite</p>
+              <div className="flex items-baseline gap-2">
+                <span className="font-serif text-[44px] font-light text-white leading-none tabular-nums" style={{ color: drift !== 0 ? "#d4ff3a" : "white" }}>{composite}</span>
+                <span className="text-[10px] text-neutral-600">/100</span>
+                {drift !== 0 && <span className="text-[10px]" style={{ color: drift > 0 ? "#86efac" : "#fda4af" }}>{drift > 0 ? "+" : ""}{drift} vs default</span>}
+              </div>
+            </div>
+            <div className="flex-1" />
+            <button onClick={resetWeights} className="text-[10px] text-neutral-500 hover:text-white transition-colors uppercase tracking-widest border border-neutral-800 hover:border-neutral-500 px-2 py-1 rounded">Reset weights</button>
+          </div>
+          <div className="bg-neutral-950 border border-neutral-900 rounded-lg px-3 py-2 mb-5 font-mono text-[11px] text-neutral-300">{formula}</div>
+
+          {/* Weight sliders */}
+          <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-3">Weights · drag to recompute</p>
+          <div className="space-y-3 mb-6">
+            {components.map(comp => (
+              <div key={comp.id} className="bg-neutral-900/40 border border-neutral-900 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: comp.color }} />
+                    <span className="text-[11px] uppercase tracking-widest" style={{ color: comp.color }}>{comp.name}</span>
+                    <span className="text-[10px] text-neutral-600">· {comp.score}/100</span>
+                  </div>
+                  <span className="text-[11px] text-neutral-300 tabular-nums">w = {comp.weight.toFixed(2)}</span>
+                </div>
+                <input type="range" min="0" max="1" step="0.05" value={comp.weight}
+                  onChange={(e) => setWeight(comp.id, parseFloat(e.target.value))}
+                  className="w-full appearance-none h-1 rounded-full bg-neutral-800 outline-none"
+                  style={{ accentColor: comp.color, background: `linear-gradient(to right, ${comp.color} 0%, ${comp.color} ${comp.weight*100}%, #262626 ${comp.weight*100}%, #262626 100%)` }} />
+                <p className="text-[10px] text-neutral-600 mt-1.5 leading-snug">{SCORE_FORMULA.componentDefs[comp.id]}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Component panels */}
+          <div className="space-y-3 mb-5">
+            {/* Sentiment */}
+            <div className="bg-neutral-950 border border-neutral-900 rounded-lg overflow-hidden">
+              <button onClick={() => setOpenPanel(openPanel === "sentiment" ? null : "sentiment")} className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-900/40 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ background: "#a7f3d0" }} />
+                  <span className="text-[12px] text-white font-medium">Sentiment</span>
+                  <span className="text-[10px] text-neutral-500">tone across signals</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-serif text-lg text-white tabular-nums">{c.sentiment.score}</span>
+                  <Icon name={openPanel === "sentiment" ? "minus" : "plus"} size={12} color="#525252" />
+                </div>
+              </button>
+              {openPanel === "sentiment" && (
+                <div className="px-4 pb-4">
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-2">Distribution</p>
+                  <div className="flex h-2 rounded-full overflow-hidden mb-1.5">
+                    <div style={{ width: c.sentiment.distribution.positive + "%", background: "#86efac" }} />
+                    <div style={{ width: c.sentiment.distribution.neutral + "%",  background: "#525252" }} />
+                    <div style={{ width: c.sentiment.distribution.negative + "%", background: "#fda4af" }} />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] mb-4">
+                    <span style={{ color: "#86efac" }}>{c.sentiment.distribution.positive}% positive</span>
+                    <span className="text-neutral-500">{c.sentiment.distribution.neutral}% neutral</span>
+                    <span style={{ color: "#fda4af" }}>{c.sentiment.distribution.negative}% negative</span>
+                  </div>
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-2">By source-type</p>
+                  <div className="space-y-1.5">
+                    {Object.entries(c.sentiment.byType).map(([k, v]) => (
+                      <div key={k}>
+                        <div className="flex items-center justify-between text-[10px] mb-1">
+                          <span className="uppercase tracking-widest text-neutral-500">{k}</span>
+                          <span className="text-neutral-300 tabular-nums">{v}</span>
+                        </div>
+                        <div className="h-0.5 bg-neutral-900 rounded-full overflow-hidden">
+                          <div className="h-full" style={{ width: v + "%", background: v >= 60 ? "#86efac" : v >= 40 ? "#fde68a" : "#fda4af" }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Virality */}
+            <div className="bg-neutral-950 border border-neutral-900 rounded-lg overflow-hidden">
+              <button onClick={() => setOpenPanel(openPanel === "virality" ? null : "virality")} className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-900/40 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ background: "#d4ff3a" }} />
+                  <span className="text-[12px] text-white font-medium">Virality</span>
+                  <span className="text-[10px] text-neutral-500">rate of change of mentions</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-serif text-lg text-white tabular-nums">{c.virality.score}</span>
+                  <Icon name={openPanel === "virality" ? "minus" : "plus"} size={12} color="#525252" />
+                </div>
+              </button>
+              {openPanel === "virality" && (
+                <div className="px-4 pb-4">
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-neutral-900/60 rounded p-2">
+                      <p className="text-[9px] uppercase tracking-widest text-neutral-500">Δ 30 days</p>
+                      <p className="text-[14px] tabular-nums" style={{ color: c.virality.delta30d >= 0 ? "#86efac" : "#fda4af" }}>{c.virality.delta30d > 0 ? "+" : ""}{c.virality.delta30d}%</p>
+                    </div>
+                    <div className="bg-neutral-900/60 rounded p-2">
+                      <p className="text-[9px] uppercase tracking-widest text-neutral-500">Δ 7 days</p>
+                      <p className="text-[14px] tabular-nums" style={{ color: c.virality.delta7d >= 0 ? "#86efac" : "#fda4af" }}>{c.virality.delta7d > 0 ? "+" : ""}{c.virality.delta7d}%</p>
+                    </div>
+                    <div className="bg-neutral-900/60 rounded p-2">
+                      <p className="text-[9px] uppercase tracking-widest text-neutral-500">Peak day</p>
+                      <p className="text-[11px] text-neutral-200 truncate">{c.virality.peakDay}</p>
+                    </div>
+                    <div className="bg-neutral-900/60 rounded p-2">
+                      <p className="text-[9px] uppercase tracking-widest text-neutral-500">Half-life</p>
+                      <p className="text-[14px] text-neutral-200 tabular-nums">{c.virality.halfLifeDays} days</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1">Mentions over the window</p>
+                  <div className="bg-neutral-900/40 border border-neutral-900 rounded p-2">
+                    <ViralitySparkline points={c.virality.timeline} color="#d4ff3a" />
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Spread */}
+            <div className="bg-neutral-950 border border-neutral-900 rounded-lg overflow-hidden">
+              <button onClick={() => setOpenPanel(openPanel === "spread" ? null : "spread")} className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-900/40 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ background: "#c4b5fd" }} />
+                  <span className="text-[12px] text-white font-medium">Spread</span>
+                  <span className="text-[10px] text-neutral-500">diversity across channels &amp; audiences</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-serif text-lg text-white tabular-nums">{c.spread.score}</span>
+                  <Icon name={openPanel === "spread" ? "minus" : "plus"} size={12} color="#525252" />
+                </div>
+              </button>
+              {openPanel === "spread" && (
+                <div className="px-4 pb-4">
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="bg-neutral-900/60 rounded p-2 text-center">
+                      <p className="text-[9px] uppercase tracking-widest text-neutral-500">Source-types</p>
+                      <p className="text-[14px] text-neutral-200 tabular-nums">{(c.spread.sourceTypeDiversity * 100).toFixed(0)}%</p>
+                    </div>
+                    <div className="bg-neutral-900/60 rounded p-2 text-center">
+                      <p className="text-[9px] uppercase tracking-widest text-neutral-500">Regions</p>
+                      <p className="text-[14px] text-neutral-200 tabular-nums">{(c.spread.regionDiversity * 100).toFixed(0)}%</p>
+                    </div>
+                    <div className="bg-neutral-900/60 rounded p-2 text-center">
+                      <p className="text-[9px] uppercase tracking-widest text-neutral-500">Demos</p>
+                      <p className="text-[14px] text-neutral-200 tabular-nums">{(c.spread.demoDiversity * 100).toFixed(0)}%</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-2">By source-type</p>
+                  <div className="space-y-1 mb-3">
+                    {Object.entries(c.spread.sourceTypeBars).map(([k, v]) => (
+                      <div key={k} className="flex items-center gap-2">
+                        <span className="text-[9px] uppercase tracking-widest text-neutral-500 w-14 flex-shrink-0">{k}</span>
+                        <div className="flex-1 h-0.5 bg-neutral-900 rounded-full overflow-hidden">
+                          <div className="h-full" style={{ width: v + "%", background: "#c4b5fd" }} />
+                        </div>
+                        <span className="text-[9px] text-neutral-300 tabular-nums w-6 text-right">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-2">By region</p>
+                  <div className="space-y-1 mb-3">
+                    {Object.entries(c.spread.regionBars).map(([k, v]) => (
+                      <div key={k} className="flex items-center gap-2">
+                        <span className="text-[9px] uppercase tracking-widest text-neutral-500 w-24 flex-shrink-0 truncate">{k}</span>
+                        <div className="flex-1 h-0.5 bg-neutral-900 rounded-full overflow-hidden">
+                          <div className="h-full" style={{ width: v + "%", background: "#c4b5fd" }} />
+                        </div>
+                        <span className="text-[9px] text-neutral-300 tabular-nums w-6 text-right">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-2">By audience</p>
+                  <div className="space-y-1">
+                    {Object.entries(c.spread.demoBars).map(([k, v]) => (
+                      <div key={k} className="flex items-center gap-2">
+                        <span className="text-[9px] uppercase tracking-widest text-neutral-500 w-28 flex-shrink-0 truncate">{k}</span>
+                        <div className="flex-1 h-0.5 bg-neutral-900 rounded-full overflow-hidden">
+                          <div className="h-full" style={{ width: v + "%", background: "#c4b5fd" }} />
+                        </div>
+                        <span className="text-[9px] text-neutral-300 tabular-nums w-6 text-right">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer link to corpus methodology */}
+          <button onClick={() => onOpenDrawer({ kind: "methodology", scope: "Score formula + corpus methodology" })}
+            className="w-full text-left bg-neutral-900/40 border border-neutral-900 hover:border-neutral-700 rounded-lg p-3 transition-colors flex items-center gap-2 text-[12px] text-neutral-300">
+            <Icon name="external-link" size={12} color="#d4ff3a" />
+            <span className="flex-1">Open corpus methodology — sample sizes, source mix, sentiment engine</span>
+            <Icon name="chevron-right" size={12} color="#525252" />
+          </button>
+        </DrawerShell>
+      );
+    }
+
+    // Tiny inline sparkline used in the Virality panel
+    function ViralitySparkline({ points, color = "#d4ff3a" }) {
+      if (!points || points.length === 0) return null;
+      const W = 460, H = 60;
+      const max = Math.max(...points), min = Math.min(...points);
+      const range = max - min || 1;
+      const pts = points.map((v, i) => ({ x: (i / (points.length - 1)) * (W - 4) + 2, y: H - 4 - ((v - min) / range) * (H - 8) }));
+      const d = pts.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(" ");
+      return (
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
+          <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+          {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="1.5" fill={color} />)}
+        </svg>
+      );
+    }
+
     function MethodologyDrawer({ payload, depth, onClose, onPop }) {
       const M = METHODOLOGY;
       return (
         <DrawerShell depth={depth} onClose={onClose} onPop={onPop} breadcrumb={["Methodology", payload.scope || "Overall"]}>
           <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1">Scope</p>
-          <h2 className="font-serif text-[20px] text-white leading-tight tracking-tight mb-5">{payload.scope || "Overall narrative penetration"}</h2>
+          <h2 className="font-serif text-[20px] text-white leading-tight tracking-tight mb-4">{payload.scope || "Overall narrative penetration"}</h2>
+
+          {/* Score formula preamble */}
+          <div className="bg-neutral-950 border border-neutral-900 rounded-lg p-4 mb-5" style={{ borderLeft: "2px solid #d4ff3a" }}>
+            <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: "#d4ff3a" }}>Score formula</p>
+            <p className="font-mono text-[12px] text-neutral-200 mb-3">{SCORE_FORMULA.description}</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-neutral-900/60 rounded p-2">
+                <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: "#a7f3d0" }}>Sentiment</p>
+                <p className="text-[10px] text-neutral-400 leading-snug">{SCORE_FORMULA.componentDefs.sentiment}</p>
+              </div>
+              <div className="bg-neutral-900/60 rounded p-2">
+                <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: "#d4ff3a" }}>Virality</p>
+                <p className="text-[10px] text-neutral-400 leading-snug">{SCORE_FORMULA.componentDefs.virality}</p>
+              </div>
+              <div className="bg-neutral-900/60 rounded p-2">
+                <p className="text-[9px] uppercase tracking-widest mb-0.5" style={{ color: "#c4b5fd" }}>Spread</p>
+                <p className="text-[10px] text-neutral-400 leading-snug">{SCORE_FORMULA.componentDefs.spread}</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-neutral-500 mt-3">Per-entity breakdowns and live weight controls are available on every score's <span className="inline-flex items-center justify-center w-3 h-3 rounded-full border border-neutral-500 text-[8px] mx-0.5">i</span> button.</p>
+          </div>
 
           <div className="grid grid-cols-2 gap-3 mb-5">
             <div className="bg-neutral-900/40 border border-neutral-900 rounded-lg p-3">
@@ -2637,7 +3085,7 @@
             </div>
             <TrendIndicator trend={region.trend} size="lg" />
             <span className="text-[11px] text-neutral-500">· {region.revenuePct}% of FY25 revenue · growth {region.revenueGrowth}</span>
-            <InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope={`${region.name} regional score`} />
+            <InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: region.name, label: `${region.name} region` })} scope={`${region.name} regional score`} />
           </div>
           {detail.summary && <p className="text-[12.5px] text-neutral-300 leading-relaxed mb-5">{detail.summary}</p>}
 
@@ -2715,7 +3163,7 @@
               <span className="text-[10px] text-neutral-600">/100</span>
             </div>
             <span className="text-[11px] text-neutral-500">{c.n.toLocaleString()} signals</span>
-            <InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope={`${c.name} country score`} />
+            <InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: payload.countryCode, label: `${c.name} (${c.flag})` })} scope={`${c.name} country score`} />
           </div>
 
           <p className="text-[10px] uppercase tracking-widest text-neutral-500 mb-2">Pillar landing in {c.name}</p>
@@ -2776,7 +3224,7 @@
             </div>
           </div>
           <div className="flex items-center gap-2 mb-5">
-            <InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope={`${bot.name} chatbot perception score`} />
+            <InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: `chatbot:${payload.botId}`, label: `${bot.name} · generative-engine perception` })} scope={`${bot.name} chatbot perception score`} />
             <span className="text-[10px] text-neutral-500">· Mention rate {data.mentionRate}% · Sentiment {data.sentiment}</span>
           </div>
 
@@ -2863,7 +3311,7 @@
           </div>
           <div className="flex items-center gap-2 mb-5">
             <TrendIndicator trend={d.trend} />
-            <InfoButton onClick={(s) => onOpenDrawer({ kind: "methodology", scope: s })} scope={`${net.name} platform score`} />
+            <InfoButton onClick={() => onOpenDrawer({ kind: "breakdown", entityKey: `social:${payload.platform}`, label: `${net.name} · social platform` })} scope={`${net.name} platform score`} />
             <span className="text-[10px] text-neutral-500">· Engagement {d.engagement}</span>
           </div>
 
@@ -2960,6 +3408,7 @@
         case "source":      return <SourceDrawer {...props} />;
         case "narrative":   return <NarrativeDrawer {...props} />;
         case "methodology": return <MethodologyDrawer {...props} />;
+        case "breakdown":   return <ScoreBreakdownDrawer {...props} />;
         case "region":      return <RegionDrawer {...props} />;
         case "country":     return <CountryDrawer {...props} />;
         case "chatbot":     return <ChatbotDrillDrawer {...props} />;
@@ -3650,6 +4099,7 @@
           case "source":      { const s = SOURCES[p.sourceId]; return s ? s.outlet : "Source"; }
           case "narrative":   { const n = NARRATIVES.find(x => x.id === p.narrativeId); return n ? n.title.length > 32 ? n.title.slice(0, 30) + "…" : n.title : "Narrative"; }
           case "methodology": return "Methodology · " + (p.scope || "Overall");
+          case "breakdown":   return "Score breakdown · " + (p.label || "Overall");
           case "region":      return p.regionName;
           case "country":     { const c = COUNTRY_PERCEPTION[p.countryCode]; return c ? c.name : p.countryCode; }
           case "chatbot":     { const b = CHATBOTS.find(x => x.id === p.botId); return b ? b.name : p.botId; }
