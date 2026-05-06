@@ -383,7 +383,8 @@
       { id: "chatgpt", name: "ChatGPT", color: "#10a37f", model: "GPT-4o" },
       { id: "claude", name: "Claude", color: "#d4a27f", model: "Claude 3.5 Sonnet" },
       { id: "gemini", name: "Gemini", color: "#4285f4", model: "Gemini 1.5 Pro" },
-      { id: "grok", name: "Grok", color: "#a0a0a0", model: "Grok-2" }
+      { id: "grok", name: "Grok", color: "#a0a0a0", model: "Grok-2" },
+      { id: "deepseek", name: "DeepSeek", color: "#4d6bfe", model: "DeepSeek-V3" }
     ];
 
     const CHATBOT_BRAND_PERCEPTION = {
@@ -422,6 +423,15 @@
         sampleSnippet: "Sisley Paris flies under the radar compared to La Mer or Augustinus Bader, but it has a devoted following among skincare enthusiasts who swear by the phyto-cosmetology approach. The Black Rose line is genuinely impressive. That said, you're paying a serious premium — and the brand hasn't kept up with sustainability trends the way newer players have.",
         pillarScores: { efficacy: 70, prestige: 76, ingredients: 62, sustainability: 34, value: 46 },
         topRecommended: ["Black Rose", "Sisleÿa L'Intégral", "Eau du Soir"]
+      },
+      deepseek: {
+        overallScore: 63, mentionRate: 44, recommendationRank: 6, sentiment: "mixed",
+        strengths: ["Ingredient analysis depth", "Comparative pricing data", "APAC market awareness"],
+        concerns: ["Western luxury brand knowledge gaps", "Inconsistent heritage narrative", "Sustainability data sparse"],
+        sampleQuery: "What luxury skincare brands use plant-based science effectively?",
+        sampleSnippet: "Sisley Paris is a French luxury skincare brand founded in 1976 by the d'Ornano family. The brand specializes in phyto-cosmetology, using plant extracts and essential oils in their formulations. Their Sisleÿa anti-aging line and Black Rose series are well-regarded. The Phyto-Blanc Le Concentré is particularly popular in the Chinese and broader Asian markets for its brightening properties.",
+        pillarScores: { efficacy: 66, prestige: 60, ingredients: 64, sustainability: 30, value: 56 },
+        topRecommended: ["Phyto-Blanc Le Concentré", "Black Rose", "Sisleÿa L'Intégral"]
       }
     };
 
@@ -430,31 +440,36 @@
         chatgpt: { score: 78, alignment: "strong", phrases: ["clinically proven", "dermatologist-recommended", "visible results", "phyto-cosmetology"] },
         claude: { score: 76, alignment: "strong", phrases: ["scientific approach", "botanical actives", "evidence-based", "clinical validation"] },
         gemini: { score: 72, alignment: "moderate", phrases: ["anti-aging properties", "plant-based ingredients", "luxury skincare science"] },
-        grok: { score: 70, alignment: "moderate", phrases: ["actually works", "real results", "phyto approach", "devoted following"] }
+        grok: { score: 70, alignment: "moderate", phrases: ["actually works", "real results", "phyto approach", "devoted following"] },
+        deepseek: { score: 66, alignment: "moderate", phrases: ["plant extract science", "anti-aging formulations", "clinical research", "phyto-cosmetology approach"] }
       },
       prestige: {
         chatgpt: { score: 82, alignment: "strong", phrases: ["French luxury house", "premium positioning", "d'Ornano family", "heritage brand"] },
         claude: { score: 78, alignment: "strong", phrases: ["artisanal quality", "family-owned maison", "luxury heritage", "distinctive approach"] },
         gemini: { score: 74, alignment: "moderate", phrases: ["established luxury", "premium French brand", "high-end skincare"] },
-        grok: { score: 76, alignment: "moderate", phrases: ["old money brand", "luxury credibility", "under the radar prestige"] }
+        grok: { score: 76, alignment: "moderate", phrases: ["old money brand", "luxury credibility", "under the radar prestige"] },
+        deepseek: { score: 60, alignment: "weak", phrases: ["French luxury brand", "premium skincare", "established house"] }
       },
       ingredients: {
         chatgpt: { score: 68, alignment: "moderate", phrases: ["botanical extracts", "plant-based", "phyto-cosmetology"] },
         claude: { score: 72, alignment: "moderate", phrases: ["botanical complexity", "plant-based actives", "phyto-cosmetology science"] },
         gemini: { score: 60, alignment: "weak", phrases: ["plant-based approach", "natural ingredients"] },
-        grok: { score: 62, alignment: "weak", phrases: ["botanical approach", "natural formulations"] }
+        grok: { score: 62, alignment: "weak", phrases: ["botanical approach", "natural formulations"] },
+        deepseek: { score: 64, alignment: "moderate", phrases: ["plant-based active ingredients", "essential oils", "botanical extracts", "natural formulation science"] }
       },
       sustainability: {
         chatgpt: { score: 42, alignment: "weak", phrases: [] },
         claude: { score: 48, alignment: "weak", phrases: ["family-owned sustainability", "evolving practices"] },
         gemini: { score: 38, alignment: "absent", phrases: [] },
-        grok: { score: 34, alignment: "absent", phrases: ["hasn't kept up with sustainability trends"] }
+        grok: { score: 34, alignment: "absent", phrases: ["hasn't kept up with sustainability trends"] },
+        deepseek: { score: 30, alignment: "absent", phrases: [] }
       },
       value: {
         chatgpt: { score: 52, alignment: "weak", phrases: ["significant price point", "premium pricing", "investment piece"] },
         claude: { score: 50, alignment: "weak", phrases: ["premium investment", "higher price tier"] },
         gemini: { score: 48, alignment: "weak", phrases: ["steep price point", "premium cost"] },
-        grok: { score: 46, alignment: "weak", phrases: ["serious premium", "you're paying a lot"] }
+        grok: { score: 46, alignment: "weak", phrases: ["serious premium", "you're paying a lot"] },
+        deepseek: { score: 56, alignment: "moderate", phrases: ["high price point", "premium tier pricing", "cost-effective alternatives exist"] }
       }
     };
 
@@ -463,37 +478,43 @@
         chatgpt: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Black Rose Precious Face Oil is one of Sisley's standout products — a luxurious facial oil that delivers visible radiance overnight.", competitors: ["La Mer Renewal Oil"] },
         claude: { rank: 1, mentioned: true, sentiment: "positive", snippet: "The Black Rose line is arguably Sisley's crown jewel. The Cream Mask and Precious Face Oil have achieved cult status among skincare connoisseurs.", competitors: [] },
         gemini: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Black Rose is frequently recommended for luxury facial oils, competing with offerings from La Mer and Chanel.", competitors: ["La Mer Renewal Oil", "Chanel Sublimage"] },
-        grok: { rank: 1, mentioned: true, sentiment: "positive", snippet: "The Black Rose line is genuinely impressive — it's the kind of product that converts skeptics into Sisley loyalists.", competitors: [] }
+        grok: { rank: 1, mentioned: true, sentiment: "positive", snippet: "The Black Rose line is genuinely impressive — it's the kind of product that converts skeptics into Sisley loyalists.", competitors: [] },
+        deepseek: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Black Rose Precious Face Oil is a signature Sisley product using Rosa Damascena and Rosa Centifolia extracts. It is well-reviewed for overnight radiance and skin nourishment.", competitors: ["La Mer Renewal Oil", "Chanel Sublimage L'Extrait"] }
       },
       "Sisleÿa L'Intégral": {
         chatgpt: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Sisleÿa L'Intégral Anti-Âge is widely considered a top-tier comprehensive anti-aging treatment with clinical backing.", competitors: ["La Mer Crème", "Augustinus Bader The Cream"] },
         claude: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Sisleÿa represents Sisley's most advanced anti-aging technology, with published clinical data supporting its efficacy claims.", competitors: ["Augustinus Bader The Rich Cream"] },
         gemini: { rank: 4, mentioned: true, sentiment: "mixed", snippet: "Sisleÿa is a well-regarded anti-aging line, though it faces stiff competition from trendier alternatives.", competitors: ["La Mer", "Augustinus Bader", "La Prairie"] },
-        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Sisleÿa is the serious anti-aging play. Clinical results back it up, but the price tag is eye-watering.", competitors: ["Augustinus Bader", "La Mer"] }
+        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Sisleÿa is the serious anti-aging play. Clinical results back it up, but the price tag is eye-watering.", competitors: ["Augustinus Bader", "La Mer"] },
+        deepseek: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Sisleÿa L'Intégral Anti-Âge is Sisley's comprehensive anti-aging line featuring advanced plant-based active complexes. Clinical studies support its efficacy in reducing visible signs of aging.", competitors: ["La Mer Crème de la Mer", "Augustinus Bader The Cream", "La Prairie Skin Caviar"] }
       },
       "Hydra-Global": {
         chatgpt: { rank: 5, mentioned: false, sentiment: "neutral", snippet: "Sisley's hydration line offers botanical-based moisturizing but faces strong competition in this crowded category.", competitors: ["La Mer Moisturizing", "Tatcha", "Drunk Elephant"] },
         claude: { rank: 4, mentioned: true, sentiment: "positive", snippet: "Hydra-Global has improved significantly after its reformulation, offering a sophisticated texture and 24-hour hydration.", competitors: ["La Mer", "Augustinus Bader"] },
         gemini: { rank: 6, mentioned: false, sentiment: "neutral", snippet: "Less frequently mentioned in the luxury moisturizer category compared to flagship competitors.", competitors: ["La Mer", "Tatcha", "La Prairie", "SK-II", "Chanel"] },
-        grok: { rank: 5, mentioned: false, sentiment: "neutral", snippet: "Hydra-Global doesn't get the attention it deserves — the reformulation fixed its texture issues.", competitors: ["Augustinus Bader", "La Mer", "Drunk Elephant", "Tatcha"] }
+        grok: { rank: 5, mentioned: false, sentiment: "neutral", snippet: "Hydra-Global doesn't get the attention it deserves — the reformulation fixed its texture issues.", competitors: ["Augustinus Bader", "La Mer", "Drunk Elephant", "Tatcha"] },
+        deepseek: { rank: 5, mentioned: false, sentiment: "neutral", snippet: "Sisley Hydra-Global is a moisturizing treatment in the brand's hydration line. It faces competition from many established moisturizers in this price range.", competitors: ["La Mer Moisturizing", "Tatcha", "La Prairie", "Drunk Elephant"] }
       },
       "Sunleÿa G.E.": {
         chatgpt: { rank: 4, mentioned: false, sentiment: "neutral", snippet: "Sisley's sun care is premium-positioned but rarely appears in top SPF recommendation lists.", competitors: ["La Roche-Posay", "Supergoop", "Dr. Dennis Gross"] },
         claude: { rank: 5, mentioned: false, sentiment: "cautious", snippet: "Sunleÿa G.E. offers anti-aging sun protection, though the luxury sun care space has seen newer entrants gaining attention.", competitors: ["Supergoop", "Dr. Dennis Gross", "La Roche-Posay", "Chanel UV Essentiel"] },
         gemini: { rank: 7, mentioned: false, sentiment: "neutral", snippet: "Not typically recommended in standard sun protection queries. The luxury SPF niche is limited.", competitors: ["Supergoop", "La Roche-Posay", "EltaMD", "Chanel"] },
-        grok: { rank: 6, mentioned: false, sentiment: "cautious", snippet: "In the SPF game, dermatologist brands dominate. Sisley's Sunleÿa is for the person who wants anti-aging with their sun protection.", competitors: ["Supergoop", "La Roche-Posay", "EltaMD"] }
+        grok: { rank: 6, mentioned: false, sentiment: "cautious", snippet: "In the SPF game, dermatologist brands dominate. Sisley's Sunleÿa is for the person who wants anti-aging with their sun protection.", competitors: ["Supergoop", "La Roche-Posay", "EltaMD"] },
+        deepseek: { rank: 6, mentioned: false, sentiment: "neutral", snippet: "Sunleÿa G.E. is a luxury sun care product with anti-aging properties. In the SPF category, dermatologist-recommended brands tend to dominate recommendations.", competitors: ["La Roche-Posay", "Supergoop", "Anessa", "Shiseido"] }
       },
       "Phyto-Blanc Le Concentré": {
         chatgpt: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc Le Concentré is recognized as a leading luxury brightening serum, especially popular in Asian markets.", competitors: ["SK-II GenOptics", "Clé de Peau Sérum Éclat"] },
         claude: { rank: 2, mentioned: true, sentiment: "positive", snippet: "One of the most respected brightening serums in luxury skincare, with strong clinical evidence for visible tone evening.", competitors: ["SK-II GenOptics"] },
         gemini: { rank: 4, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc is well-regarded in the brightening category, particularly recommended for Asian skin types.", competitors: ["SK-II", "Clé de Peau", "Shiseido White Lucent"] },
-        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc is Sisley's APAC powerhouse — #1 on Xiaohongshu for brightening and legitimately effective.", competitors: ["SK-II GenOptics", "Clé de Peau"] }
+        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc is Sisley's APAC powerhouse — #1 on Xiaohongshu for brightening and legitimately effective.", competitors: ["SK-II GenOptics", "Clé de Peau"] },
+        deepseek: { rank: 1, mentioned: true, sentiment: "positive", snippet: "Phyto-Blanc Le Concentré is one of Sisley's most popular products in the Asian market. It is the top-rated brightening serum on Xiaohongshu and is widely recommended for its effective whitening and tone-evening properties using plant-based actives.", competitors: ["SK-II GenOptics Aura Essence", "Clé de Peau Sérum Éclat", "Shiseido White Lucent"] }
       },
       "Eau du Soir": {
         chatgpt: { rank: 2, mentioned: true, sentiment: "positive", snippet: "Eau du Soir is a sophisticated evening fragrance that embodies classic Parisian elegance — a timeless choice.", competitors: ["Chanel No. 5", "Dior J'adore"] },
         claude: { rank: 2, mentioned: true, sentiment: "positive", snippet: "An iconic fragrance that represents the quieter side of French luxury — less marketed but deeply appreciated by fragrance enthusiasts.", competitors: ["Chanel No. 5"] },
         gemini: { rank: 4, mentioned: false, sentiment: "neutral", snippet: "A classic fragrance from Sisley, though less visible in mainstream fragrance recommendations.", competitors: ["Chanel No. 5", "Dior J'adore", "YSL Libre"] },
-        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Eau du Soir is the connoisseur's choice — the kind of fragrance people compliment but can never identify.", competitors: ["Chanel No. 5", "Dior J'adore"] }
+        grok: { rank: 3, mentioned: true, sentiment: "positive", snippet: "Eau du Soir is the connoisseur's choice — the kind of fragrance people compliment but can never identify.", competitors: ["Chanel No. 5", "Dior J'adore"] },
+        deepseek: { rank: 4, mentioned: false, sentiment: "neutral", snippet: "Eau du Soir is a classic evening fragrance from Sisley Paris. It is less commonly mentioned compared to mainstream luxury fragrances.", competitors: ["Chanel No. 5", "Dior J'adore", "YSL Libre", "Lancôme La Vie Est Belle"] }
       }
     };
 
@@ -1021,7 +1042,7 @@
             rightContent={<span className="text-xs text-neutral-600 font-normal normal-case tracking-normal">How AI assistants perceive and recommend Sisley</span>} />
 
           {/* Chatbot Score Cards */}
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-5 gap-3 mb-4">
             {CHATBOTS.map(bot => {
               const score = getBotScore(bot.id);
               const rank = getBotRank(bot.id);
@@ -1112,7 +1133,7 @@
               {level === "product" && productName && (
                 <div className="mt-4">
                   <p className="text-xs text-neutral-500 uppercase tracking-wider mb-2">Product Ranking Across Chatbots</p>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-5 gap-2">
                     {CHATBOTS.map(b => {
                       const pd = CHATBOT_PRODUCT_PERCEPTION[productName]?.[b.id];
                       return (

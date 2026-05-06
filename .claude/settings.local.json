@@ -22,7 +22,9 @@
       "WebFetch(domain:nogood.io)",
       "WebFetch(domain:footwearmagazine.com)",
       "WebFetch(domain:hypeauditor.com)",
-      "WebFetch(domain:blog.hypeauditor.com)"
+      "WebFetch(domain:blog.hypeauditor.com)",
+      "Bash(git push:*)",
+      "Bash(grep -v \"CHATBOT\\\\|const\\\\|//\")"
     ]
   }
 }
